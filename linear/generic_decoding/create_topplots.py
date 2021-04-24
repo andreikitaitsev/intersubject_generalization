@@ -88,12 +88,12 @@ def res2top(filepaths, top):
         sds.append(sd_it)
     return tops, sds
 
-def topplot(tops, errors, labels=None, xpos=None, title=None):
+def topplot(tops, errors, labels=None, xpos=None, title=None, fig=None):
     
     if xpos==None: 
         xpos=np.arange(0, len(tops), 1, dtype=int)
-    
-    fig = plt.figure(figsize=(16,9))
+    if fig==None:
+        fig = plt.figure(figsize=(16,9))
     ax = fig.add_axes([0.05,0.05,0.9, 0.88])
     ax.bar(xpos, tops, yerr=errors, color='b', align='center', capsize=10)
     ax.set_xticks(xpos)
@@ -315,9 +315,3 @@ if __name__ =='__main__':
     fig1, ax1 = topplot_av_sw(av_fname, sw_fname, filepaths, top=1, labels=labels,\
         title='Time window 0 40')
     plt.show()
-    #out_dir=Path('/scratch/akitaitsev/intersubject_generalizeation/linear/generic_decoding/cumulative/')
-    #out_dir=Path('/home/akitaitsev/cumul_plots')
-    #fig1.savefig(out_dir.joinpath('top1_0_40.png'), dpi=300)
-    #fig2.savefig(out_dir.joinpath('top1_13_40.png'),dpi=300)
-    #fig3.savefig(out_dir.joinpath('top4_0_40.png'),dpi=300)
-    #fig4.savefig(out_dir.joinpath('top4_13_40.png'),dpi=300)

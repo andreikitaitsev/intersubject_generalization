@@ -31,9 +31,9 @@ do
     do
         for regr_type in "average" "subjectwise"
         do
-            real_files[$ind]=$real_base"/"$method"/"$prepr"/"$n_comp"/50hz/time_window13-40/step_"$(printf '%d' $step)"/"$rname
-            pred_files[$ind]=$pred_base"/"$method"/"$prepr"/"$n_comp"/50hz/time_window13-40/step_"$(printf '%d' $step)"/"$prname_base$regr_type".pkl"
-            out_dirs[$ind]=$out_base"/"$method"/"$prepr"/"$n_comp"/50hz/time_window13-40/step_"$(printf '%d' $step)"/"
+            real_files[$ind]=$real_base"/"$method"/"$prepr"/"$n_comp"/50hz/time_window13-40/1-10percent/step_"$(printf '%d' $step)"/"$rname
+            pred_files[$ind]=$pred_base"/"$method"/"$prepr"/"$n_comp"/50hz/time_window13-40/1-10percent/step_"$(printf '%d' $step)"/"$prname_base$regr_type".pkl"
+            out_dirs[$ind]=$out_base"/"$method"/"$prepr"/"$n_comp"/50hz/time_window13-40/1-10percent/step_"$(printf '%d' $step)"/"
             regr_types[$ind]=$regr_type
             n_comps[$ind]=$n_comp
             steps[$ind]=$step

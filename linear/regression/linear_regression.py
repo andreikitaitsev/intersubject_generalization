@@ -201,37 +201,6 @@ def _linear_regression_incr_train_data(X_tr, X_val, X_test, Y_train, Y_val, Y_te
         Y_test_pred = np.stack(Y_test_pred, axis=0)
     return Y_val_pred, Y_test_pred, trained_regrs
 
-def _linear_regression_learn_pr_incr(X_tr, X_val, X_test, Y_train, Y_val, Y_test, regr_type):
-    Y_train = np.transpose(np.array(Y_train), (0,2,1))
-    Y_val = np.transpose(np.array(Y_val), (0,2,1))
-    Y_test = np.transpose(np.array(Y_test), (0,2,1))
-
-    scaler = StandardScaler()
-    regr = LinearRegression()
-    trained_regrs = []
-    if regr_type == 'average':
-        Y_train = np.mean(Y_train, axis=0) 
-        Y_val = np.mean(Y_val, axis=0) 
-        Y_test = np.mean(Y_test, axis=0) 
-        # fit regr
-        regr.fit(scaler.fit_transform(X_tr[0:Y_train.shape[0], :]), Y_train) 
-        Y_val_pred = regr.predict(scaler.fit_transform(X_val))
-        Y_test_pred= regr.predict(scaler.fit_transform(X_test))
-        trained_regrs.append(regr)
-    elif regr_type == 'subjectwise':
-        Y_val_pred=[]
-        Y_test_pred=[]
-        for subj in range(7):
-            trained_regrs.append(copy.deepcopy(regr))
-            trained_regrs[-1].fit(scaler.fit_transform(X_tr[0: Y_train[subj].shape[0],:]),\
-                Y_train[subj])
-            Y_val_pred.append(trained_regrs[-1].predict(scaler.fit_transform(X_val)))
-            Y_test_pred.append(trained_regrs[-1].predict(scaler.fit_transform(X_test)))
-        Y_val_pred = np.stack(Y_val_pred, axis=0)
-        Y_test_pred = np.stack(Y_test_pred, axis=0)
-    return Y_val_pred, Y_test_pred, trained_regrs
-
-
 def linear_regression(X_tr, X_val, X_test, Y_train, Y_val, Y_test, regr_type, \
     sliding_window, n_splits, cv_regr, cv_gener, incr_train_data, learn_pr_incr):
     '''Linear regression wrapper function. Performs either simple or sliding window
@@ -263,7 +232,7 @@ def linear_regression(X_tr, X_val, X_test, Y_train, Y_val, Y_test, regr_type, \
         Y_val_pred, Y_test_pred, trained_regrs = _linear_regression_incr_train_data(X_tr, X_val, \
             X_test, Y_train, Y_val, Y_test, regr_type)
     elif learn_pr_incr and not sliding_window and not cv_regr and not cv_gener:
-        Y_val_pred, Y_test_pred, trained_regrs = _linear_regression_learn_pr_incr(X_tr, X_val, \
+        Y_val_pred, Y_test_pred, trained_regrs = _linear_regression_simple(X_tr, X_val, \
             X_test, Y_train, Y_val, Y_test, regr_type)
     return Y_val_pred, Y_test_pred, trained_regrs
 

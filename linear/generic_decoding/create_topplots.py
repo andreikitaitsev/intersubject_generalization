@@ -88,14 +88,21 @@ def res2top(filepaths, top):
         sds.append(sd_it)
     return tops, sds
 
-def topplot(tops, errors, labels=None, xpos=None, title=None, fig=None):
+def topplot(tops, errors=None, labels=None, xpos=None, title=None, fig=None,\
+    ax=None, color='b', graph_type='bar',linestyle='solid', capsize=10, **kwargs):
     
-    if xpos==None: 
+    if isinstance(xpos, type(None)): 
         xpos=np.arange(0, len(tops), 1, dtype=int)
     if fig==None:
         fig = plt.figure(figsize=(16,9))
-    ax = fig.add_axes([0.05,0.05,0.9, 0.88])
-    ax.bar(xpos, tops, yerr=errors, color='b', align='center', capsize=10)
+    if ax==None:
+        ax = fig.add_axes([0.05,0.05,0.9, 0.88])
+    if graph_type == 'bar':
+        ax.bar(xpos, tops, yerr=errors, color=color, align='center', \
+            capsize=10, **kwargs)
+    elif graph_type=='line':
+        ax.errorbar(xpos, tops, yerr=errors, color=color, capsize=capsize, \
+            linestyle=linestyle,**kwargs)
     ax.set_xticks(xpos)
     ax.set_xticklabels(labels)
     ax.tick_params(axis='x', labelsize=8)

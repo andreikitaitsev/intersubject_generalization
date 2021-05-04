@@ -23,7 +23,7 @@ class transformer(object):
 
 class eeg_dataset(torch.utils.data.Dataset):
     '''EEG dataset class.'''
-    def __init__(self, eeg_dataset, transform=None, return_idx=False):
+    def __init__(self, eeg_dataset, transform=None):
         '''
         Inputs:
             eeg_dataset - numpy array of eeg dataset of 
@@ -53,64 +53,21 @@ class eeg_dataset(torch.utils.data.Dataset):
         batch2 = self.eeg[subj_idx[1],idx,:,:].type(torch.float32)
         return (batch1, batch2)
 
-class ContrastiveLoss_manual(torch.nn.Module):
-    def __init__(self, batch_size, temperature=0.5, verbose=True):
-        super().__init__()
-        self.batch_size = batch_size
-        self.register_buffer("temperature", torch.tensor(temperature))
-        self.verbose = verbose
-
-    def forward(self, emb_i, emb_j):
-        """
-        emb_i and emb_j are batches of embeddings, where corresponding indices are pairs
-        z_i, z_j as per SimCLR paper
-        """
-        z_i = F.normalize(emb_i, dim=1)
-        z_j = F.normalize(emb_j, dim=1)
-
-        representations = torch.cat([z_i, z_j], dim=0)
-        similarity_matrix = F.cosine_similarity(representations.unsqueeze(1), representations.unsqueeze(0), dim=2)
-        if self.verbose: print("Similarity matrix\n", similarity_matrix, "\n")
-
-        def l_ij(i, j):
-            z_i_, z_j_ = representations[i], representations[j]
-            sim_i_j = similarity_matrix[i, j]
-            if self.verbose: print(f"sim({i}, {j})={sim_i_j}")
-
-            numerator = torch.exp(sim_i_j / self.temperature)
-            one_for_not_i = torch.ones((2 * self.batch_size, )).to(emb_i.device).scatter_(0, torch.tensor([i]), 0.0)
-            if self.verbose: print(f"1{{k!={i}}}",one_for_not_i)
-
-            denominator = torch.sum(
-            one_for_not_i * torch.exp(similarity_matrix[i, :] / self.temperature)
-            )    
-            if self.verbose: print("Denominator", denominator)
-
-            loss_ij = -torch.log(numerator / denominator)
-            if self.verbose: print(f"loss({i},{j})={loss_ij}\n")
-
-            return loss_ij.squeeze(0)
-
-        N = self.batch_size
-        loss = 0.0
-        for k in range(0, N):
-            loss += l_ij(k, k + N) + l_ij(k + N, k)
-        return 1.0 / (2*N) * loss
-
 class ContrastiveLoss(torch.nn.Module):
     def __init__(self, batch_size, temperature=0.5, device="cpu"):
+        '''Inputs:
+            batch_size - int,
+            temperature -float
+            device - str, cpu or cuda
+        '''
         super().__init__()
         self.batch_size = torch.tensor(batch_size)
-        #self.register_buffer("temperature", torch.tensor(temperature))
-        #self.register_buffer("negatives_mask", (~torch.eye(batch_size * 2, batch_size * 2, dtype=bool)).float())
         self.temperature = torch.tensor(temperature)
         self.negatives_mask = (~torch.eye(batch_size * 2, batch_size * 2, dtype=bool)).float()
         self.device=torch.device(device)
         self.device_name=device
         if "cuda" in device:
             self.batch_size = self.batch_size.cuda()
-            #self.register_buffer("temperature", torch.tensor(temperature))
-            #self.register_buffer("negatives_mask", (~torch.eye(batch_size * 2, batch_size * 2, dtype=bool)).float())
             self.temperature = self.temperature.cuda()
             self.negatives_mask = self.negatives_mask.cuda() 
     
@@ -170,11 +127,10 @@ if __name__=='__main__':
     parser.add_argument('-out_dir',type=str, default=\
     '/scratch/akitaitsev/intersubject_generalizeation/dnn/perceiver/trial/EEG/',
     help='default=/scratch/akitaitsev/intersubject_generalizeation/dnn/perceiver/trial/EEG/')
-    parser.add_argument('-n_workers', type=int, default=1, help='default=1')
+    parser.add_argument('-n_workers', type=int, default=0, help='default=0')
     parser.add_argument('-batch_size', type=int, default=4, help='Default=4')
-    #parser.add_argument('-n_gpus',type=int, default=None,help='If none, use CPU. Default=None')
-    parser.add_argument('-n_gpu', type=int, default=None, help='int, n_gpu to use. '
-    'If None, use CPU. Default=None')
+    parser.add_argument('-gpu', action='store_true', default=False, help='Falg, whether to '
+    'use GPU. Default = False.')
     parser.add_argument('-temp',type=float, default=0.5, help='Temperature parameter for '
     'contrastive Loss. Default = 0.5')
     parser.add_argument('-lr', type=float, default=0.05, help='Learning rate. Default=0.05')
@@ -182,10 +138,10 @@ if __name__=='__main__':
     'through the dataset. Default=10')
     args=parser.parse_args()
 
-    #
+    
     n_workers=args.n_workers
     batch_size=args.batch_size
-    n_gpu=args.n_gpu
+    gpu=args.gpu
     temperature=args.temp
     learning_rate=args.lr
     out_dir=Path(args.out_dir)
@@ -198,7 +154,6 @@ if __name__=='__main__':
     
     dataset_train = eeg_dataset(dataset_train)
     dataset_test = eeg_dataset(dataset_test)
-
     # define the model
     model = Perceiver(  
         input_channels = 1,          # number of channels for each token of the input
@@ -220,17 +175,18 @@ if __name__=='__main__':
         self_per_cross_attn = 2      # number of self attention blocks per cross attention
         )
 
-    if n_gpu!=None and n_workers >=1:
+    if gpu and n_workers >=1:
         warnings.warn('Using GPU and n_workers>=1 can cause some difficulties.')
-    if n_gpu!=None:
+    if gpu:
         device_name="cuda"
         device=torch.device("cuda:0")
         model.to(torch.device("cuda:0"))
         model=torch.nn.DataParallel(model) 
-    elif n_gpu==None:
+        print("Using "+str(torch.cuda.device_count()) +" GPUs.")
+    elif not gpu: 
         device=torch.device("cpu")
         device_name="cpu"
-    
+        print("Using CPU.") 
     # define train and test dataloaders
     train_dataloader = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size,
         shuffle=False, num_workers=n_workers, drop_last=True)
@@ -256,7 +212,8 @@ if __name__=='__main__':
         for batch1, batch2 in train_dataloader:
            concat_batch=torch.cat((batch1, batch2), 0)
            concat_batch=concat_batch.unsqueeze(3)
-           cincat_batch=concat_batch.to("cuda:0")
+           if args.gpu:
+               cincat_batch=concat_batch.to("cuda:0")
            projections = model(concat_batch)
            proj1 = projections[:batch_size] #images, features
            proj2 = projections[batch_size:]
@@ -281,17 +238,10 @@ if __name__=='__main__':
                format(epoch, int(cntr-20), cntr, sum(losses["epoch"+str(epoch)][-20:])/20, toc))
     writer.close()
     
-    if not out_path.is_dir():
-        out_path.mkdir(parents=True)
+    if not out_dir.is_dir():
+        out_dir.mkdir(parents=True)
 
     # save trained net
     torch.save(net.state_dict(), out_dir.joinpath('trained_model.pt'))
-    joblib.dump(losses, out_path.joinpath('losses.pkl')) 
-
-    fig, ax=plt.subplots()
-    ax.plot(losses)
-    ax.set_xlabel('iteration')
-    ax.set_ylabel('loss')
-    ax.set_title('Loss profile over '+str(n_epochs)+ ' with contrastive loss and adam '+\
-    'optimization.')
-    fig.savefig(out_path.joinpath('losses_profile.png'))
+    # save losses
+    joblib.dump(losses, out_dir.joinpath('losses.pkl')) 

@@ -23,7 +23,7 @@ class transformer(object):
 
 class eeg_dataset(torch.utils.data.Dataset):
     '''EEG dataset class.'''
-    def __init__(self, eeg_dataset, transform=None):
+    def __init__(self, eeg_dataset, transform=None, debug=False):
         '''
         Inputs:
             eeg_dataset - numpy array of eeg dataset of 
@@ -32,12 +32,14 @@ class eeg_dataset(torch.utils.data.Dataset):
                           eeg dataset. If None, reshapes
                           eeg_dataset into (-1, chans,times)
                           and converts it to tensor
+            debug - print used indices
         '''
         if transform == None:
             self.transformer = transformer()
         else:
             self.transformer = transform
         self.eeg = self.transformer(eeg_dataset)
+        self.debug = debug
 
     def __len__(self):
         '''Return number of images'''
@@ -47,10 +49,16 @@ class eeg_dataset(torch.utils.data.Dataset):
         '''
         idx - index along images
         '''
-        subj_idx = np.random.permutation(np.linspace(0,self.eeg.shape[0],\
+        subj_idx = np.random.permutation(np.linspace(0, self.eeg.shape[0],\
             self.eeg.shape[0], endpoint=False, dtype=int))
         batch1 = self.eeg[subj_idx[0],idx,:,:].type(torch.float32)
         batch2 = self.eeg[subj_idx[1],idx,:,:].type(torch.float32)
+        if self.debug:
+            print("Subject indices to be shuffled: "+' '.join(map(str, subj_idx.tolist())))
+            print("Indexing for batch 1: [{:d}:{:d},:,:]".format(\
+                subj_idx[0], idx))
+            print("Indexing for batch 2: [{:d}:{:d},:,:]".format(\
+                subj_idx[1], idx))
         return (batch1, batch2)
 
 class ContrastiveLoss(torch.nn.Module):
@@ -115,6 +123,29 @@ class ContrastiveLoss(torch.nn.Module):
             loss=loss.cuda()
         return loss
  
+def ContrastiveLoss_leftthomas(out1, out2, batch_size, temperature, normalize="normalize"):
+    '''Inputs:
+        out1, out2 - outputs of dnn input to which were batches of images yielded
+                     from contrastive_loss_dataset
+        batch_size - int
+        temperature -int
+        normalize - normalize or zscore
+    '''
+    if normalize=="normalize":
+        out1=F.normalize(out1, dim=1) 
+        out2=F.normalize(out2, dim=1)
+    elif normalize=="zscore":
+        out1 = (out1 - torch.mean(out1,1).unsqueeze(1))/torch.std(out1, 1).unsqueeze(1)
+        out2 = (out2 - torch.mean(out2,1).unsqueeze(1))/torch.std(out2, 1).unsqueeze(1)
+    minval=1e-7
+    concat_out =torch.cat([out1, out2], dim=0)
+    sim_matrix = torch.exp(torch.mm(concat_out, concat_out.t().contiguous()).clamp(min=minval)/temperature)
+    mask = (torch.ones_like(sim_matrix) - torch.eye(2 * batch_size, device=sim_matrix.device)).bool()
+    sim_matrix = sim_matrix.masked_select(mask).view(2 * batch_size, -1)
+    pos_sim = torch.exp(torch.sum(out1 * out2, dim=-1) / temperature)
+    pos_sim = torch.cat([pos_sim, pos_sim], dim=0)
+    loss = (- torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
+    return loss
 
 
 if __name__=='__main__':
@@ -128,24 +159,25 @@ if __name__=='__main__':
     '/scratch/akitaitsev/intersubject_generalizeation/dnn/perceiver/trial/EEG/',
     help='default=/scratch/akitaitsev/intersubject_generalizeation/dnn/perceiver/trial/EEG/')
     parser.add_argument('-n_workers', type=int, default=0, help='default=0')
-    parser.add_argument('-batch_size', type=int, default=4, help='Default=4')
+    parser.add_argument('-batch_size', type=int, default=16, help='Default=16')
     parser.add_argument('-gpu', action='store_true', default=False, help='Falg, whether to '
     'use GPU. Default = False.')
-    parser.add_argument('-temp',type=float, default=0.5, help='Temperature parameter for '
+    parser.add_argument('-temperature',type=float, default=0.5, help='Temperature parameter for '
     'contrastive Loss. Default = 0.5')
-    parser.add_argument('-lr', type=float, default=0.05, help='Learning rate. Default=0.05')
+    parser.add_argument('-lr', type=float, default=0.01, help='Learning rate. Default=0.01')
     parser.add_argument('-n_epochs',type=int, default=10, help='How many times to pass '
     'through the dataset. Default=10')
+    parser.add_argument('-batch_per_loss',type=int, default=20,help='Save loss every '
+    'bacth_per_loss mini-batches. Default=20.')
     args=parser.parse_args()
 
     
     n_workers=args.n_workers
-    batch_size=args.batch_size
     gpu=args.gpu
-    temperature=args.temp
     learning_rate=args.lr
     out_dir=Path(args.out_dir)
     n_epochs = args.n_epochs
+    bpl = args.batch_per_loss
 
     datasets_dir = Path('/scratch/akitaitsev/intersubject_generalizeation/linear/',\
     'dataset_matrices/50hz/time_window13-40/')
@@ -188,13 +220,10 @@ if __name__=='__main__':
         device_name="cpu"
         print("Using CPU.") 
     # define train and test dataloaders
-    train_dataloader = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size,
+    train_dataloader = torch.utils.data.DataLoader(dataset_train, batch_size=args.batch_size,
         shuffle=False, num_workers=n_workers, drop_last=True)
-    test_dataloader = torch.utils.data.DataLoader(dataset_train, batch_size=batch_size,
+    test_dataloader = torch.utils.data.DataLoader(dataset_train, batch_size=args.batch_size,
         shuffle=False, num_workers=n_workers, drop_last=True)
-    
-    # define loss function
-    loss_fn = ContrastiveLoss(batch_size, temperature, device_name)
     
     # define optmizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -210,38 +239,38 @@ if __name__=='__main__':
         tic = time.time()
         losses["epoch"+str(epoch)]=[]
         for batch1, batch2 in train_dataloader:
-           concat_batch=torch.cat((batch1, batch2), 0)
-           concat_batch=concat_batch.unsqueeze(3)
-           if args.gpu:
-               cincat_batch=concat_batch.to("cuda:0")
-           projections = model(concat_batch)
-           proj1 = projections[:batch_size] #images, features
-           proj2 = projections[batch_size:]
+            batch1 = torch.unsqueeze(batch1, dim=3)
+            batch2=torch.unsqueeze(batch2, dim=3)
+            if args.gpu:
+                batch1 = batch1.cuda()
+                batch2 = batch2.cuda()
+            out1 = model(batch1)
+            out2 = model(batch2)
            
-           # compute loss
-           loss = loss_fn.forward(proj1, proj2)
-           losses["epoch"+str(epoch)].append(loss.cpu().detach().numpy())
+            # compute loss
+            loss = ContrastiveLoss_leftthomas(out1, out2, args.batch_size, args.temperature)
+            losses["epoch"+str(epoch)].append(loss.cpu().detach().numpy())
 
-           optimizer.zero_grad()
+            optimizer.zero_grad()
 
-           loss.backward()
-           optimizer.step()
-           cntr+=1
-           
-           # save loss every 20 batches
-           if cntr %20 ==0:
-               writer.add_scalar('training_loss', sum(losses["epoch"+str(epoch)][-20:])/20, cntr+\
+            loss.backward()
+            optimizer.step()
+            cntr+=1
+
+            # save loss every 20 batches
+            if cntr % bpl ==0 and cntr!=0:
+                writer.add_scalar('training_loss', sum(losses["epoch"+str(epoch)][-bpl:])/bpl, cntr+\
                 len(train_dataloader)*epoch) 
-               toc=time.time() - tic
-               tic=time.time()
-               print('Epoch {:d}, average loss over bacthes {:d} - {:d}: {:3f}. Time, s: {:1f}'.\
-               format(epoch, int(cntr-20), cntr, sum(losses["epoch"+str(epoch)][-20:])/20, toc))
+                toc=time.time() - tic
+                tic=time.time()
+                print('Epoch {:d}, average loss over bacthes {:d} - {:d}: {:3f}. Time, s: {:1f}'.\
+                format(epoch, int(cntr-bpl), cntr, sum(losses["epoch"+str(epoch)][-bpl:])/bpl, toc))
     writer.close()
-    
+
     if not out_dir.is_dir():
         out_dir.mkdir(parents=True)
 
     # save trained net
-    torch.save(net.state_dict(), out_dir.joinpath('trained_model.pt'))
+    torch.save(model.state_dict(), out_dir.joinpath('trained_model.pt'))
     # save losses
     joblib.dump(losses, out_dir.joinpath('losses.pkl')) 

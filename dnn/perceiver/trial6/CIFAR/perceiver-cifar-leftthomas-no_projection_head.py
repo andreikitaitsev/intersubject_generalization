@@ -249,7 +249,7 @@ def test_SVM_perceiver(model, train_dataloader_svm, test_dataloader):
     return av_acc
 
 
-def test_perceiver_projection_head(model, clf,  train_dataloader_no_transform, test_dataloader):
+def test_net_NO_projection_head(model, clf,  train_dataloader_no_transform, test_dataloader):
     '''Test classification accuracy with SVM calssifier fit
     on train data features outputted by the perceiver (NB! not the final output
     of the model, i.e. projection head).
@@ -261,15 +261,12 @@ def test_perceiver_projection_head(model, clf,  train_dataloader_no_transform, t
         classify_encoder_output -bool, whether to do classification on encoder 
             output. If False, classify projection head outputs. Default=True.
     Outputs:
-        enc_acc - average classification accuracy on 1 epoch of encoder features on test set
-        proj_head_acc - average classification accuracy on 1 epoch of projection head outputs on test set
+        acc - average classification accuracy on 1 epoch of test set
     ''' 
 
     model.eval()
-    train_features = []
     train_out = []
     train_targets = []
-    test_features = []
     test_out = []
     test_targets = []
 
@@ -280,11 +277,9 @@ def test_perceiver_projection_head(model, clf,  train_dataloader_no_transform, t
         for data, target in train_dataloader_no_transform:
             data = data.permute(0,2,3,1) #from (ims, chans, height, weight)
             # to (ims, height, weight, chans)
-            feature, out = model(data.to(device)) # (ims, output_dim)
-            train_features.append(feature.cpu().detach().numpy())
+            out = model(data.to(device)) # (ims, output_dim)
             train_out.append(out.cpu().detach().numpy())
             train_targets.append(target)
-        train_features = np.concatenate(train_features, axis=0)
         train_out = np.concatenate(train_out, axis=0)
         train_targets = np.concatenate(train_targets, axis=0)
         
@@ -292,26 +287,20 @@ def test_perceiver_projection_head(model, clf,  train_dataloader_no_transform, t
         for data, target in test_dataloader:
             data = data.permute(0,2,3,1) #from (ims, chans, height, weight)
             # to (ims, height, weight, chans)
-            feature, out = model(data.to(device)) # (ims, output_dim)
-            test_features.append(feature.cpu().detach().numpy())
+            out = model(data.to(device)) # (ims, output_dim)
             test_out.append(out.cpu().detach().numpy())
             test_targets.append(target)
-        test_features = np.concatenate(test_features, axis=0)
         test_out = np.concatenate(test_out, axis=0)
         test_targets = np.concatenate(test_targets, axis=0)
     
-    clf_enc = copy.deepcopy(clf)
-    clf_proj_head = copy.deepcopy(clf)
-    clf_enc.fit(train_features, train_targets)
-    clf_proj_head.fit(train_out, train_targets)
+    clf = copy-deepcopy(clf)
+    clf.fit(train_out, train_targets)
 
     # predict test targets from test output
-    pred_targets_enc = clf_enc.predict(test_features)
-    pred_targets_proj_head = clf_proj_head.predict(test_out)
+    pred_targets = clf.predict(test_out)
     # average accuracy 
-    enc_acc = sum(pred_targets_enc == test_targets)*100/len(test_targets)
-    proj_head_acc = sum(pred_targets_proj_head == test_targets)*100/len(test_targets)
-    return enc_acc, proj_head_acc
+    acc = sum(pred_targets == test_targets)*100/len(test_targets)
+    return acc
 
 if __name__=='__main__':
     import argparse
@@ -321,8 +310,8 @@ if __name__=='__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-out_dir',type=str, default=\
-    '/scratch/akitaitsev/intersubject_generalization/dnn/perceiver/trial5/CIFAR/leftthomas/draft/',
-    help='default = /scratch/akitaitsev/intersubject_generalization/dnn/perceiver/trial5/CIFAR/leftthomas/draft/')
+    '/scratch/akitaitsev/intersubject_generalization/dnn/perceiver/trial6/CIFAR/leftthomas/draft/',
+    help='default = /scratch/akitaitsev/intersubject_generalization/dnn/perceiver/trial6/CIFAR/leftthomas/draft/')
     parser.add_argument('-n_workers', type=int, default=0, help='default=0')
     parser.add_argument('-batch_size', type=int, default=16, help='Default=16')
     parser.add_argument('-gpu', action='store_true', default=False, help='Falg, whether to '
@@ -465,7 +454,6 @@ if __name__=='__main__':
     # Loop through dataset in batches
     losses = defaultdict()
     accuracies = defaultdict()
-    accuracies = defaultdict()
     for clf in clf_names:
         accuracies[clf] = []
         accuracies[clf] = []
@@ -476,7 +464,6 @@ if __name__=='__main__':
         cntr=0
         tic = time.time()
         losses["epoch"+str(epoch)]=[]
-        accuracies["epoch"+str(epoch)]=[]
 
         for batch1, batch2 in train_dataloader:
             batch1 = batch1.permute(0,2,3,1)
@@ -509,20 +496,12 @@ if __name__=='__main__':
         # save test accuracy every epta epcohs
         if cntr_epta % epta == 0:
             for clf_name, clf in zip(clf_names, clfs): #loop through classifiers
-                enc_acc, proj_head_acc = test_perceiver_projection_head(model, clf, \
+                acc = test_net_NO_projection_head(model, clf, \
                     train_dataloader_no_transform, test_dataloader)
-
-                accuracies[clf_name].append(enc_acc)
-                accuracies[clf_name].append(proj_head_acc)
-             
-                print(clf_name + ' network accuracy on encoder output at epoch {:d}: {:.2f} %'.\
-                    format(epoch, enc_acc))
-                print(clf_name + ' network accuracy on proj_head output at epoch {:d}: {:.2f} %'.\
-                    format(epoch, proj_head_acc))
-                
-                writer.add_scalar((clf_name+'_accuracy_encoder'), enc_acc,  
-                        len(train_dataloader)*cntr_epta) 
-                writer.add_scalar((clf_name+'_accuracy_proj_head'), proj_head_acc,  
+                accuracies[clf_name].append(acc)
+                print(clf_name + ' network accuracy at epoch {:d}: {:.2f} %'.\
+                    format(epoch, acc))
+                writer.add_scalar((clf_name+'_accuracy'), acc,  
                         len(train_dataloader)*cntr_epta) 
         cntr_epta += 1
     writer.close()

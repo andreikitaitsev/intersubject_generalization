@@ -1,17 +1,22 @@
 #! /bin/env/python
 
 import numpy as np
+import joblib
 import torch
+import torch.nn.functional as F
 import torchvision
 import matplotlib.pyplot as plt
 import torchvision.transforms as transforms
+import sklearn
+import sklearn.discriminant_analysis
+import sklearn.neighbors
+import sklearn.svm
+import copy
 from torch import nn
 from torch.utils.tensorboard import SummaryWriter
-import torch.nn.functional as F
 from torchvision.transforms import ToPILImage
 from torchvision.models.resnet import resnet50
 from pathlib import Path
-import joblib
 
 
 class eeg_dataset(torch.utils.data.Dataset):
@@ -182,7 +187,7 @@ class Model(nn.Module):
         out = self.g(feature)
         return F.normalize(feature, dim=-1), F.normalize(out, dim=-1)
 
-def test_KNN(model, test_dataloader):
+def test_KNN_resnet(model, test_dataloader):
     '''Test classification accuracy with KNN calssifier.''' 
     model.eval()
     total_top1, total_num, feature_bank = 0.0, 0, []
@@ -221,6 +226,105 @@ def test_KNN(model, test_dataloader):
     return total_top1 / total_num * 100
     
 
+def test_SVM_resnet(model, train_dataloader_svm, test_dataloader):
+    '''Test classification accuracy with SVM calssifier fit
+    on train data representations. Use only projection head outputs.''' 
+    model.eval()
+    train_outs = []
+    train_targets = []
+    test_outs=[]
+    test_targets=[]
+
+    if torch.cuda.is_available():
+        device="cuda"
+    with torch.no_grad():
+        # create out and target array for the train dataset
+        for data, target in train_dataloader_svm:
+            # data.shape = (ims, height, weight, chans)
+            feature, out = model(data.to(device)) # (ims, output_dim)
+            train_outs.append(out.cpu().detach().numpy())
+            train_targets.append(target)
+        train_outs = np.concatenate(train_outs, axis=0)
+        train_targets = np.concatenate(train_targets, axis=0)
+        clf = LinearSVC()
+        clf.fit(train_outs, train_targets)
+
+        # create out and target array for the train dataset
+        for data, target in test_dataloader:
+            # data.shape = (ims, height, weight, chans)
+            feature, out = model(data.to(device)) 
+            test_outs.append(out.cpu().detach().numpy())
+            test_targets.append(target)
+        test_outs = np.concatenate(test_outs, axis=0)
+        test_targets = np.concatenate(test_targets, axis=0)
+
+    # predict test targets from test output
+    pred_targets = clf.predict(test_outs)
+    
+    # average accuracy 
+    av_acc = sum(pred_targets == test_targets)*100/len(test_targets)
+    return av_acc
+
+def test_net_projection_head(model, clf,  train_dataloader_no_transform, test_dataloader):
+    '''Test classification accuracy with any calssifier fit on output of both encoder and 
+    projection head. Net shall output 2 feature sets: first - encoder output, second - 
+    projection head output.
+    Inputs:
+        model - DNN model
+        classifier - sklearn classifer object or list of classifer objects
+        train_dataloader_no_transform - train dataloader without any data augmentation
+        tets_dataloader
+        classify_encoder_output -bool, whether to do classification on encoder 
+            output. If False, classify projection head outputs. Default=True.
+    Outputs:
+        enc_acc - average classification accuracy on 1 epoch of encoder features on test set
+        proj_head_acc - average classification accuracy on 1 epoch of projection head outputs on test set
+    ''' 
+
+    model.eval()
+    train_features = []
+    train_out = []
+    train_targets = []
+    test_features = []
+    test_out = []
+    test_targets = []
+
+    if torch.cuda.is_available():
+        device="cuda"
+    with torch.no_grad():
+        # create out and target array for the train dataset
+        for data, target in train_dataloader_no_transform:
+            feature, out = model(data.to(device)) # (ims, output_dim)
+            train_features.append(feature.cpu().detach().numpy())
+            train_out.append(out.cpu().detach().numpy())
+            train_targets.append(target)
+        train_features = np.concatenate(train_features, axis=0)
+        train_out = np.concatenate(train_out, axis=0)
+        train_targets = np.concatenate(train_targets, axis=0)
+        
+        # create out and target array for the train dataset
+        for data, target in test_dataloader:
+            feature, out = model(data.to(device)) # (ims, output_dim)
+            test_features.append(feature.cpu().detach().numpy())
+            test_out.append(out.cpu().detach().numpy())
+            test_targets.append(target)
+        test_features = np.concatenate(test_features, axis=0)
+        test_out = np.concatenate(test_out, axis=0)
+        test_targets = np.concatenate(test_targets, axis=0)
+    
+    clf_enc = copy.deepcopy(clf)
+    clf_proj_head = copy.deepcopy(clf)
+    clf_enc.fit(train_features, train_targets)
+    clf_proj_head.fit(train_out, train_targets)
+
+    # predict test targets from test output
+    pred_targets_enc = clf_enc.predict(test_features)
+    pred_targets_proj_head = clf_proj_head.predict(test_out)
+    # average accuracy 
+    enc_acc = sum(pred_targets_enc == test_targets)*100/len(test_targets)
+    proj_head_acc = sum(pred_targets_proj_head == test_targets)*100/len(test_targets)
+    return enc_acc, proj_head_acc
+
 if __name__=='__main__':
     import argparse
     import time
@@ -246,8 +350,11 @@ if __name__=='__main__':
     'set accuracy every epochs_per_test_accuracy  epochs. Default == 1')
     parser.add_argument('-feature_dim', type=int, default=128, help='Num features in projection '
     'head layer of the model. Defautl = 128.') 
+    parser.add_argument('-clf','--classifier', type=str, nargs='+', default='KNN', help='Classifier to use on '
+    'DNN outputs. LDA, QDA, KNN or SVM. Multiple classifers are allowed. Default=KNN.')
     args=parser.parse_args()
 
+    clf = args.classifier
     featuredim=args.feature_dim
     n_workers=args.n_workers
     batch_size=args.batch_size
@@ -303,6 +410,12 @@ if __name__=='__main__':
     test_dataloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
                                              shuffle=False, num_workers=n_workers,\
                                              drop_last=True)
+
+    trainset_no_transform = torchvision.datasets.CIFAR10(root='./data', train=True, download=True,\
+                                            transform=test_transform)
+    train_dataloader_no_transform = torch.utils.data.DataLoader(trainset_no_transform, batch_size=batch_size,
+                                             shuffle=False, num_workers=n_workers,\
+                                             drop_last=True)
     # define the model
     model = Model(featuredim)
 
@@ -325,10 +438,29 @@ if __name__=='__main__':
     # Logging
     writer = SummaryWriter(out_dir.joinpath('runs'))
     
-    # Loop through EEG dataset in batches
+    # define classifer
+    clf_names = args.classifier
+    clf_dict = {'KNN': sklearn.neighbors.KNeighborsClassifier(),\
+                'LDA': sklearn.discriminant_analysis.LinearDiscriminantAnalysis(),\
+                'QDA': sklearn.discriminant_analysis.QuadraticDiscriminantAnalysis(),\
+                'SVM': sklearn.svm.LinearSVC() }
+    if isinstance(clf_names, list):
+        clfs = [clf_dict[el] for el in clf_names]
+    elif isinstance(clf_names, str):
+        clfs = [clf_dict[clf_names]]
+        clf_names = list(clf_names)
+
+    # Loss and  accuracy init
     losses = defaultdict()
     accuracies = defaultdict()
+    accuracies["encoder"] = defaultdict()
+    accuracies["projection_head"] = defaultdict()
+    for clf in clf_names:
+        accuracies["encoder"][clf] = []
+        accuracies["projection_head"][clf] = []
     cntr_epta=0
+
+    # Loop through EEG dataset in batches
     for epoch in range(n_epochs):
         model.train()
         cntr=0
@@ -364,11 +496,23 @@ if __name__=='__main__':
 
         # save test accuracy every epta epcohs
         if cntr_epta % epta == 0:
-            top1_acc = test_KNN(model, test_dataloader)
-            print('Network accuracy at epoch {:d}: {:.2f} %'.\
-                format(epoch, top1_acc))
-            writer.add_scalar('test_accuracy', top1_acc,  
-                len(train_dataloader)*cntr_epta) 
+            for clf_name, clf in zip(clf_names, clfs): #loop through classifiers
+                tic = time.time()
+                enc_acc, proj_head_acc = test_net_projection_head(model, clf, \
+                    train_dataloader_no_transform, test_dataloader)
+
+                accuracies["encoder"][clf_name].append(enc_acc)
+                accuracies["projection_head"][clf_name].append(proj_head_acc)
+                toc = time.time() - tic
+                print(clf_name + ' network accuracy on encoder output at epoch {:d}: {:.2f} %'.\
+                    format(epoch, enc_acc))
+                print(clf_name + ' network accuracy on proj_head output at epoch {:d}: {:.2f} %'.\
+                    format(epoch, proj_head_acc))
+                print('Elapse time: {:.2f} minutes.'.format(toc/60))   
+                writer.add_scalar((clf_name+'_accuracy_encoder'), enc_acc,  
+                        len(train_dataloader)*cntr_epta) 
+                writer.add_scalar((clf_name+'_accuracy_proj_head'), proj_head_acc,  
+                        len(train_dataloader)*cntr_epta) 
         cntr_epta += 1
     writer.close()
 

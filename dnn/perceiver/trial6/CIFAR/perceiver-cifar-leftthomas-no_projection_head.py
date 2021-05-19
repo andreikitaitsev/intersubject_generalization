@@ -293,7 +293,7 @@ def test_net_NO_projection_head(model, clf,  train_dataloader_no_transform, test
         test_out = np.concatenate(test_out, axis=0)
         test_targets = np.concatenate(test_targets, axis=0)
     
-    clf = copy-deepcopy(clf)
+    clf = copy.deepcopy(clf)
     clf.fit(train_out, train_targets)
 
     # predict test targets from test output

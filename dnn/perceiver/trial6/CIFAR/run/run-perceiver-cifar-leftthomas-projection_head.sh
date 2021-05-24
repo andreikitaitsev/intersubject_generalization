@@ -3,10 +3,10 @@
 #SBATCH --job-name=perc_pr_head_LDA_QDA_KNN_SVM
 #SBATCH --mail-type=end
 #SBATCH --mem=8000
-#SBATCH --time=48:00:00
+#SBATCH --time=50:00:00
 #SBATCH --qos=prio
 #SBATCH --partition=gpu
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:2
 
 # N JOBS 4
 declare -a lrates

@@ -362,6 +362,7 @@ def project_eeg(model, test_dataloader, layer="proj_head", split_size=None):
             proj_eeg_tmp = np.concatenate(proj_eeg_tmp, axis=0)
             projected_eeg.append(proj_eeg_tmp)
         projected_eeg = np.stack(projected_eeg, axis=0)
+    model.train()
     return projected_eeg
 
 
@@ -415,7 +416,7 @@ if __name__=='__main__':
 
     train_dataloader = torch.utils.data.DataLoader(dataset_train, batch_size=args.batch_size,\
                                                 shuffle=True, num_workers=n_workers,\
-                                                drop_last=False)
+                                                drop_last=True)
     test_dataloader = torch.utils.data.DataLoader(dataset_test, batch_size=None, \
                                                 shuffle = False, num_workers=n_workers,\
                                                 drop_last=False)
@@ -518,8 +519,6 @@ if __name__=='__main__':
             accuracies["projection_head"]["subjectwise"]["mean"].append(sw_PH[0])
             accuracies["projection_head"]["subjectwise"]["SD"].append(sw_PH[1])
             
-            # switch model to training mode
-            model.train()
             # Print info
             toc = time.time() - tic
             print('Network top1 generic decoding accuracy on encoder output at epoch {:d}:\n'
@@ -543,8 +542,17 @@ if __name__=='__main__':
     if not out_dir.is_dir():
         out_dir.mkdir(parents=True)
 
-    # Project EEG into new space for each subject independently using trained model
-
+    # Project EEG into new space using trained model
+    projected_eeg = defaultdict()
+    projected_eeg["train"] = defaultdict() 
+    projected_eeg["test"] = defaultdict() 
+    projected_eeg["train"]["encoder"] = project_eeg(model, train_dataloader_for_assessment, layer="encoder", split_size=100) 
+    projected_eeg["train"]["projection_head"] = project_eeg(model, train_dataloader_for_assessment, layer="encoder", split_size=100) 
+    projected_eeg["test"]["encoder"] = project_eeg(model, test_dataloader, layer="proj_head") 
+    projected_eeg["test"]["projection_head"] = project_eeg(model, test_dataloader, layer="proj_head") 
+    
+    # save projected EEG 
+    joblib.dump(projected_eeg, out_dir.joinpath('projected_eeg.pkl'))
 
     # save trained model
     torch.save(model.state_dict(), out_dir.joinpath('trained_model.pt'))

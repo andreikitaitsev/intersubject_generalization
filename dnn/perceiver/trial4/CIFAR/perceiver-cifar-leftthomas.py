@@ -163,6 +163,13 @@ def ContrastiveLoss_leftthomas(out1, out2, batch_size, temperature, normalize="n
     loss = (- torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
     return loss
 
+def test_knn(model, test_dataloader):
+    '''Test model performance on 1 epoch of test dataset
+    using k nearest neighbours classifier.
+    '''
+    # create feature bank
+    feature_bank = 
+
 
 if __name__=='__main__':
     import argparse

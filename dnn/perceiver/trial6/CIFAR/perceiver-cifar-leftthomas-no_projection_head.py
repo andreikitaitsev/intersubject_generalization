@@ -9,6 +9,8 @@ import sklearn
 import sklearn.discriminant_analysis
 import sklearn.neighbors
 import sklearn.svm
+import joblib
+import copy
 from perceiver_pytorch import Perceiver
 from torch import nn
 from torch.utils.tensorboard import SummaryWriter
@@ -16,7 +18,6 @@ import torch.nn.functional as F
 from torchvision.transforms import ToPILImage
 from torchvision.models.resnet import resnet50
 from pathlib import Path
-import joblib
 
 
 class eeg_dataset(torch.utils.data.Dataset):

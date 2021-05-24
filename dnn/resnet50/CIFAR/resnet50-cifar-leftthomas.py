@@ -333,8 +333,8 @@ if __name__=='__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-out_dir',type=str, default=\
-    '/scratch/akitaitsev/intersubject_generalization/dnn/resnet/CIFAR/leftthomas/draft/',
-    help='default=/scratch/akitaitsev/intersubject_generalization/dnn/resnet/CIFAR/leftthomas/draft/')
+    '/scratch/akitaitsev/intersubject_generalization/dnn/resnet50/CIFAR/leftthomas/draft/',
+    help='default=/scratch/akitaitsev/intersubject_generalization/dnn/resnet50/CIFAR/leftthomas/draft/')
     parser.add_argument('-n_workers', type=int, default=0, help='default=0')
     parser.add_argument('-batch_size', type=int, default=16, help='Default=16')
     parser.add_argument('-gpu', action='store_true', default=False, help='Falg, whether to '

@@ -270,6 +270,12 @@ if __name__=='__main__':
     'set accuracy every epochs_per_test_accuracy  epochs. Default == 1')
     parser.add_argument('-out_dim', type=int, default=200, help='Output dimensions of encoder. If no '
     'projection head, final output dimensions. Default=200.')
+    parser.add_argument('-latent_array_dims', type=int, default=200, help='Dimensions of latent query array '
+    'of encoder. Default=200.')
+    parser.add_argument('-num_latent_dims', type=int, default=100, help='Number of latents, or induced '
+    'set points, or centroids. Default=100.')
+    parser.add_argument('-num_latent_heads', type=int, default=100, help='Number of latent cross-attention heads. '
+    'Default=8.')
     args=parser.parse_args()
 
     n_workers=args.n_workers
@@ -307,9 +313,9 @@ if __name__=='__main__':
 
     # define the model
     out_dim=args.out_dim
-    latent_array_dims=200
-    num_latent_dims=100
-    latent_heads=8
+    latent_array_dims = args.latent_array_dims
+    num_latent_dims = args.num_latent_dims
+    latent_heads = args.num_latent_heads
 
     model = Perceiver(  
         input_channels = 1,          # number of channels for each token of the input

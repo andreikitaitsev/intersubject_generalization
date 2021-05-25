@@ -334,7 +334,14 @@ if __name__=='__main__':
     'projection head, final output dimensions. Default=200.')
     parser.add_argument('-out_dim_PH', '--out_dim_proj_head', type=int, default=200, help='Output dimensions of encoder. If no '
     'projection head, final output dimensions. Default=200.')
-
+    parser.add_argument('-perc_latent_array_dim', type=int, default=200, help='Dimensions of latent query array '
+    'of encoder. Default=200.')
+    parser.add_argument('-perc_num_latent_dim', type=int, default=100, help='Number of latents, or induced '
+    'set points, or centroids. Default=100.')
+    parser.add_argument('-perc_latent_heads', type=int, default=8, help='Number of latent cross-attention heads. '
+    'Default=8.')
+    parser.add_argument('-proj_head_intermediate_dim ', type=int, default=512, help='Number of dims in intermediate layer of '
+    'projection head.Default=512.')
     args=parser.parse_args()
 
     n_workers=args.n_workers
@@ -373,8 +380,12 @@ if __name__=='__main__':
     writer = SummaryWriter(out_dir.joinpath('runs'))    
 
     # define the model
-    model = perceiver_projection_head(perc_out_dim = out_dim_ENC,\
-                                     proj_head_out_dim = out_dim_PH)
+    model = perceiver_projection_head(perc_latent_array_dim = args.perc_latent_array_dim,\
+                                        perc_num_letent_dim = args.perc_num_latent_dim,\
+                                        perc_latent_heads = args.perc_latent_heads,\
+                                        perc_out_dim = out_dim_ENC,\
+                                        proj_head_intermediate_dim = args.proj_head_intermediate_dim,\
+                                        proj_head_out_dim = out_dim_PH)
 
     if gpu and n_workers >=1:
         warnings.warn('Using GPU and n_workers>=1 can cause some difficulties.')

@@ -16,9 +16,9 @@ declare -a out_dirs
 # Non variable params
 lr=0.0001
 batch_size=64
-n_epochs=1000
+n_epochs=100
 bpl=50
-out_dir="/scratch/akitaitsev/intersubject_generalization/dnn/perceiver/EEG/leftthomas/projection_head/hpar-grid-ver1/"
+out_dir="/scratch/akitaitsev/intersubject_generalization/dnn/perceiver/EEG/trial6/leftthomas/projection_head/hpar-grid-ver1/"
 names=("perc_latent_array_dim" "perc_num_latent_dim" "perc_latent_heads" "out_dim_ENC" "out_dim_PH")
 
 # params to make gridsearch over
@@ -45,9 +45,9 @@ do
         do
             for par4 in ${out_dim_ENC[@]}
             do
-                for par5 in ${out_dim_PD[@]}
+                for par5 in ${out_dim_PH[@]}
                 do
-                    out_dirs[$ind]=$out_dir"/"${names[0]}$par1"/"${names[1]}$par2"/"${names[2²]}$par3"/"${names[3]}$par4"/"${names[4]}$par5"/"
+                    out_dirs[$ind]=$out_dir"/"${names[0]}$par1"/"${names[1]}$par2"/"${names[2]}$par3"/"${names[3]}$par4"/"${names[4]}$par5"/"
                     perc_latent_array_dims[$ind]=$par1
                     perc_num_latent_dims[$ind]=$par2
                     perc_latent_heads[$ind]=$par3
@@ -77,4 +77,4 @@ echo out_dir: $out_dirs
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/akitaitsev/anaconda3/lib/
 cd /home/akitaitsev/code/intersubject_generalization/dnn/perceiver/trial6/EEG/
 
-python perceiver-projection_head-eeg-leftthomas.py -gpu -batch_size $batch_size -out_dir $out_dirs -lr $lr -bpl 50 -n_epochs $n_epochs -perc_latent_array_dim $perc_latent_array_dims -perc_num_latent_dim $perc_num_latent_dims -perc_latent_heads $perc_latent_heads -out_dim_ENC $out_dim_ENCs -out_dim_PD $out_dim_PHs
+python perceiver-projection_head-eeg-leftthomas.py -gpu -batch_size $batch_size -out_dir $out_dirs -lr $lr -bpl 50 -n_epochs $n_epochs -perc_latent_array_dim $perc_latent_array_dims -perc_num_latent_dim $perc_num_latent_dims -perc_latent_heads $perc_latent_heads -out_dim_ENC $out_dim_ENCs -out_dim_PH $out_dim_PHs

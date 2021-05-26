@@ -381,7 +381,7 @@ if __name__=='__main__':
 
     # define the model
     model = perceiver_projection_head(perc_latent_array_dim = args.perc_latent_array_dim,\
-                                        perc_num_letent_dim = args.perc_num_latent_dim,\
+                                        perc_num_latent_dim = args.perc_num_latent_dim,\
                                         perc_latent_heads = args.perc_latent_heads,\
                                         perc_out_dim = out_dim_ENC,\
                                         proj_head_intermediate_dim = args.proj_head_intermediate_dim,\

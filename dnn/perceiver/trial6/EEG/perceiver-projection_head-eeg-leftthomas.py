@@ -340,7 +340,7 @@ if __name__=='__main__':
     'set points, or centroids. Default=100.')
     parser.add_argument('-perc_latent_heads', type=int, default=8, help='Number of latent cross-attention heads. '
     'Default=8.')
-    parser.add_argument('-proj_head_intermediate_dim ', type=int, default=512, help='Number of dims in intermediate layer of '
+    parser.add_argument('-proj_head_intermediate_dim', type=int, default=512, help='Number of dims in intermediate layer of '
     'projection head.Default=512.')
     args=parser.parse_args()
 

@@ -34,6 +34,6 @@ echo lrates: $lrates
 echo out_dir: $out_dirs
 
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/akitaitsev/anaconda3/lib/
-cd /home/akitaitsev/code/intersubject_generalization/dnn/perceiver/trial6/EEG/
+cd /home/akitaitsev/code/intersubject_generalization/dnn/perceiver/EEG/
 
 python perceiver-no_projection_head-eeg-leftthomas.py -gpu -batch_size $batch_size -out_dir $out_dirs -lr $lrates -bpl 50 -n_epochs $n_epochs

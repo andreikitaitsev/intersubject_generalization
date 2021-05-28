@@ -75,6 +75,6 @@ echo out_dim_PHs: $out_dim_PHs
 echo out_dir: $out_dirs
 
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/akitaitsev/anaconda3/lib/
-cd /home/akitaitsev/code/intersubject_generalization/dnn/perceiver/trial6/EEG/
+cd /home/akitaitsev/code/intersubject_generalization/dnn/perceiver/EEG/
 
 python perceiver-projection_head-eeg-leftthomas.py -gpu -batch_size $batch_size -out_dir $out_dirs -lr $lr -bpl 50 -n_epochs $n_epochs -perc_latent_array_dim $perc_latent_array_dims -perc_num_latent_dim $perc_num_latent_dims -perc_latent_heads $perc_latent_heads -out_dim_ENC $out_dim_ENCs -out_dim_PH $out_dim_PHs

@@ -18,15 +18,15 @@ lr=0.0001
 batch_size=64
 n_epochs=100
 bpl=50
-out_dir="/scratch/akitaitsev/intersubject_generalization/dnn/perceiver/EEG/trial6/leftthomas/projection_head/hpar-grid-ver1/"
+out_dir="/scratch/akitaitsev/intersubject_generalization/dnn/perceiver/EEG/leftthomas/projection_head/hpar-grid-ver1/"
 names=("perc_latent_array_dim" "perc_num_latent_dim" "perc_latent_heads" "out_dim_ENC" "out_dim_PH")
 
 # params to make gridsearch over
 perc_latent_array_dim=(50 100)
 perc_num_latent_dim=(50 200)
-perc_latent_head=(2,4)
-out_dim_ENC=(100, 200) # as if mvica with PCA 100, 200
-out_dim_PH=(100, 400) # as if mvica with PCA 100, 400
+perc_latent_head=(2 4)
+out_dim_ENC=(100 200) # as if mvica with PCA 100, 200
+out_dim_PH=(100 400) # as if mvica with PCA 100, 400
 
 declare -a perc_latent_array_dims
 declare -a perc_num_latent_dims

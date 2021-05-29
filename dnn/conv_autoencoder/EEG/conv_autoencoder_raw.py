@@ -46,7 +46,8 @@ class conv_autoencoder_raw(torch.nn.Module):
             dec (ims, subj, eeg_ch, eeg_time)
     '''
     def __init__(self, n_subj, out_ch1=32, out_ch2=16, out_ch3=1,\
-                feat_dims1=(8,12), feat_dims2 = (4,4), feat_dims3=(8,12), p=0.5):
+                feat_dims1=(8,12), feat_dims2 = (4,4), feat_dims3=(8,12), p=0.5,\
+                no_reshaping=False):
          
         conv1 = torch.nn.Sequential(torch.nn.Conv2d(n_subj, out_ch1, (3,3)), \
                                 torch.nn.BatchNorm2d(out_ch1),\
@@ -75,17 +76,21 @@ class conv_autoencoder_raw(torch.nn.Module):
         self.conv2 = conv2
         self.conv3 = conv3
         self.decoder = decoder
+        self.no_reshaping = no_reshaping
 
     def forward(self, data):
         # encoder
         orig_dims = data.shape[-2:]
         batch_size = data.shape[0]
         out1 = self.conv1(data)
-        out1 = F.interpolate(out1, self.feat_dims1)
+        if not self.no_reshaping:
+            out1 = F.interpolate(out1, self.feat_dims1)
         out2 = self.conv2(out1)
-        out2 = F.interpolate(out2, self.feat_dims2)
-        out3 = self.conv3(out2)
-        enc_out = F.interpolate(out3, self.feat_dims3)
+        if not self.no_reshaping:
+            out2 = F.interpolate(out2, self.feat_dims2)
+        enc_out = self.conv3(out2)
+        if not self.no_reshaping:
+            enc_out = F.interpolate(out3, self.feat_dims3)
         # decoder
         dec_out = self.decoder(enc_out)
         dec_out = F.interpolate(dec_out, orig_dims)
@@ -178,7 +183,7 @@ if __name__=='__main__':
     writer = SummaryWriter(out_dir.joinpath('runs'))
 
     # define the model
-    model = conv_autoencoder_raw(n_subj = data_test.shape[0])
+    model = conv_autoencoder_raw(n_subj = data_test.shape[0], no_reshaping=True)
     if args.gpu and args.n_workers >=1:
         warnings.warn('Using GPU and n_workers>=1 can cause some difficulties.')
     if args.gpu:

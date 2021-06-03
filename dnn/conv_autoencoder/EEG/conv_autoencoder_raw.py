@@ -4,6 +4,7 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
+from sklearn.preprocessing import MaxAbsScaler
 from assess_eeg import assess_eeg
 from assess_eeg import project_eeg
 
@@ -15,53 +16,68 @@ from assess_eeg import project_eeg
 class dataset(torch.utils.data.Dataset):
     '''EEG dataset for training convolutional autoencoder.
     '''
-    def __init__(self, data):
+    def __init__(self, data, normalize=True):
         '''
         Inputs:
-            data - numpy array or tensor of shape (subj,ims, chans, times)
+            data - numpy array or tensor of shape (subj, ims, chans, times)
+            normalize - whether tio normalize input to range (-1,1). Default=True
         '''
+
         self.data = torch.tensor(data).permute(1,0,2,3) # to shape(ims, subjs, chans, times)
-        if torch.cuda.is_available():
-            self.data = self.data.cuda()
+        if normalize:
+            norm = torch.nn.BatchNorm2d(num_features = self.data.shape[1]) #n_subjects
+            self.data = norm(self.data.type(torch.float32)).detach().numpy()
+        else:
+            self.data = self.data.type(torch.float32).detach().numpy()
+        # scale data between -1 and 1
+        scaler = MaxAbsScaler()
+        dat = np.zeros_like(self.data)
+        for im in range(self.data.shape[0]):
+            for subj in range(self.data.shape[1]):
+                dat[im, subj,:,:] = scaler.fit_transform(self.data[im,subj,:,:])
+        self.data = torch.tensor(dat)
 
     def __len__(self):
         return self.data.shape[0]
 
     def __getitem__(self, idx):
-        return self.data[idx].type(torch.float32)
+        return self.data[idx]
 
 class conv_autoencoder_raw(torch.nn.Module):
     '''
-    NB! Output dimenstions of this encoder correspond to raw EEG (subj, im, CH, TIME).
+    NB! DNN works on raw EEG (subj, im, CH, TIME) insteas of (subj, im ,feat).
     Input shall be of shape (batch_size, subj, eeg_ch, eeg_time)
     Attributes:
         n_subj -int, n sunjects
         out_ch1, 2 ,3 - int, number of output channels for each conv layer of encoder
         feat_dims1, 2 ,3 - tuple of ints, feature dimensions at each conv layer
-        p - float, dropout_probability. Default 0.5
+        p - float, dropout_probability. Default 0 (no dropout)
+        no_resampling - bool, whether to implement resampling out output layers to
+        spefified dimensions. If True, does not resample. Default=True.
+        enc_layer -int, which encoder layer to resurn in the output. Default=2 (last layer)
     Methods:
         forward. 
             Outputs:
             enc (ims, 1, feature1, feature2)
             dec (ims, subj, eeg_ch, eeg_time)
     '''
-    def __init__(self, n_subj, out_ch1=32, out_ch2=16, out_ch3=1,\
-                feat_dims1=(8,12), feat_dims2 = (4,4), feat_dims3=(8,12), p=0.5,\
-                no_reshaping=False):
+    def __init__(self, n_subj, out_ch1=32, out_ch2=64, out_ch3=32,\
+                feat_dims1=(8,12), feat_dims2 = (4,4), feat_dims3=(8,12), p=0,\
+                no_resampling=True, enc_layer=2):
          
-        conv1 = torch.nn.Sequential(torch.nn.Conv2d(n_subj, out_ch1, (3,3)), \
+        conv1 = torch.nn.Sequential(torch.nn.Conv2d(n_subj, out_ch1, 3), \
                                 torch.nn.BatchNorm2d(out_ch1),\
                                 torch.nn.ReLU(),\
                                 torch.nn.Dropout2d(p=p))
-        conv2 = torch.nn.Sequential(torch.nn.Conv2d(out_ch1, out_ch2, (3,3)), \
+        conv2 = torch.nn.Sequential(torch.nn.Conv2d(out_ch1, out_ch2, 3), \
                                 torch.nn.BatchNorm2d(out_ch2),\
                                 torch.nn.ReLU(),\
                                 torch.nn.Dropout2d(p=p))
-        conv3 = torch.nn.Sequential(torch.nn.Conv2d(out_ch2, out_ch3, (3,3)), \
+        conv3 = torch.nn.Sequential(torch.nn.Conv2d(out_ch2, out_ch3, 3), \
                                 torch.nn.BatchNorm2d(out_ch3),\
                                 torch.nn.ReLU(),\
                                 torch.nn.Dropout2d(p=p))
-        decoder = torch.nn.Sequential(torch.nn.Conv2d(out_ch3, n_subj, (3,3)), \
+        decoder = torch.nn.Sequential(torch.nn.Conv2d(out_ch3, n_subj, 3), \
                                 torch.nn.BatchNorm2d(n_subj),\
                                 torch.nn.Tanh())
         super(conv_autoencoder_raw, self).__init__()
@@ -75,26 +91,32 @@ class conv_autoencoder_raw(torch.nn.Module):
         self.conv1 = conv1
         self.conv2 = conv2
         self.conv3 = conv3
+        self.no_resampling = no_resampling
+        self.enc_layer = enc_layer
+
         self.decoder = decoder
-        self.no_reshaping = no_reshaping
 
     def forward(self, data):
         # encoder
         orig_dims = data.shape[-2:]
         batch_size = data.shape[0]
         out1 = self.conv1(data)
-        if not self.no_reshaping:
+        if not self.no_resampling:
             out1 = F.interpolate(out1, self.feat_dims1)
         out2 = self.conv2(out1)
-        if not self.no_reshaping:
+        if not self.no_resampling:
             out2 = F.interpolate(out2, self.feat_dims2)
-        enc_out = self.conv3(out2)
-        if not self.no_reshaping:
-            enc_out = F.interpolate(out3, self.feat_dims3)
+        out3 = self.conv3(out2)
+        if not self.no_resampling:
+            out3 = F.interpolate(out3, self.feat_dims3)
         # decoder
-        dec_out = self.decoder(enc_out)
+        enc_layers=[out1, out2, out3]
+        enc_out=enc_layers[self.enc_layer]
+        dec_out = self.decoder(out3)
         dec_out = F.interpolate(dec_out, orig_dims)
+
         return enc_out, dec_out
+
 
 def project_eeg_raw(model, dataloader):
     '''Project EEG into new space using DNN model.
@@ -154,9 +176,13 @@ if __name__=='__main__':
     parser.add_argument('-epta','--epochs_per_test_accuracy',type=int, default=1, help='Save test '
     'set accuracy every epochs_per_test_accuracy  epochs. Default == 1')
     parser.add_argument('-eeg_dir', type=str, default=\
-    '/scratch/akitaitsev/intersubject_generalization/linear/dataset_matrices/50hz/time_window13-40/',\
+    '/scratch/akitaitsev/intersubject_generalization/linear/dataset1/dataset_matrices/50hz/time_window13-40/',\
     help='Directory with EEG dataset. Default=/scratch/akitaitsev/intersubject_generalization/linear/'
     'dataset_matrices/50hz/time_window13-40/')
+    parser.add_argument('-no_resampling', type=bool, default=True, help='Whether to resample output to specific '
+    'dimensions. Default=True.')
+    parser.add_argument('-enc_layer', type=int, default=2, help='Which layer of encoder to return as an output. Default=2.'
+    'dimensions. Default=True.')
     args = parser.parse_args()
     
     bpl = args.batches_per_loss
@@ -183,7 +209,8 @@ if __name__=='__main__':
     writer = SummaryWriter(out_dir.joinpath('runs'))
 
     # define the model
-    model = conv_autoencoder_raw(n_subj = data_test.shape[0], no_reshaping=True)
+    model = conv_autoencoder_raw(n_subj = 7, no_resampling = args.no_resampling, enc_layer=args.enc_layer)
+
     if args.gpu and args.n_workers >=1:
         warnings.warn('Using GPU and n_workers>=1 can cause some difficulties.')
     if args.gpu:
@@ -208,9 +235,6 @@ if __name__=='__main__':
     accuracies = defaultdict()
     accuracies["encoder"] = defaultdict()
     accuracies["encoder"]["average"] = []
-    accuracies["encoder"]["subjectwise"] = defaultdict()
-    accuracies["encoder"]["subjectwise"]["mean"] = []
-    accuracies["encoder"]["subjectwise"]["SD"] = []
     accuracies["decoder"] = defaultdict()
     accuracies["decoder"]["average"] = [] 
     accuracies["decoder"]["subjectwise"] = defaultdict()
@@ -229,7 +253,6 @@ if __name__=='__main__':
             if args.gpu:
                 batch = batch.to(device)
             enc, out = model.forward(batch)
-           
             # compute loss - minimize diff between outputs of net and real data?
             loss = loss_fn(out, batch) 
             losses["epoch"+str(epoch)].append(loss.cpu().detach().numpy())
@@ -250,9 +273,19 @@ if __name__=='__main__':
             cntr+=1
 
         # save test accuracy every epta epcohs
-        if cntr_epta % epta == 0:
+        if cntr_epta % epta == 0 and epta!=0:
             tic = time.time()
             
+
+            import matplotlib.pyplot as plt
+            fig, axes=plt.subplots(3)
+            axes[0].imshow(batch[0,0,:,:].cpu().detach().numpy())
+            axes[1].imshow(enc[0,0,:,:].cpu().detach().squeeze().numpy())
+            axes[2].imshow(out[0,0,:,:].cpu().detach().squeeze().numpy())
+            import ipdb; ipdb.set_trace() 
+            
+
+
             # Project train and test set EEG into new space
             eeg_train_proj_ENC, eeg_train_proj_DEC = project_eeg_raw(model, train_dataloader) 
             eeg_test_proj_ENC, eeg_test_proj_DEC = project_eeg_raw(model, test_dataloader)

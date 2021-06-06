@@ -10,9 +10,9 @@
 
 ### 4 Jobs
 srate=100
-out_base="/scratch/akitaitsev/intersubject_generalizeation/linear/dataset2/generic_decoding/control/pca_200/"$srate"hz/time_window"
-real_base="/scratch/akitaitsev/intersubject_generalizeation/linear/dataset2/intersubject_generalization/control/pca_200"$srate"hz/time_window"
-pred_base="/scratch/akitaitsev/intersubject_generalizeation/linear/dataset2/regression/control/pca_200"$srate"hz/time_window"
+out_base="/scratch/akitaitsev/intersubject_generalization/linear/dataset2/generic_decoding/control/pca_200/"$srate"hz/time_window"
+real_base="/scratch/akitaitsev/intersubject_generalization/linear/dataset2/intersubject_generalization/control/pca_200/"$srate"hz/time_window"
+pred_base="/scratch/akitaitsev/intersubject_generalization/linear/dataset2/regression/control/pca_200/"$srate"hz/time_window"
 
 declare -a out_dirs
 declare -a real_files
@@ -25,7 +25,7 @@ do
     do
         out_dirs[$ind]=$out_base$t"/av_reps/"
         real_files[$ind]=$real_base$t"/av_reps/shared_test.pkl"
-        pred_files[$ind]=$pred_base$t"/av_reps/shared_test_predicted_"$dtype".pkl"
+        pred_files[$ind]=$pred_base$t"/av_reps/Y_test_predicted_"$dtype".pkl"
         dtypes[$ind]=$dtype
         ((ind=ind+1))
     done
@@ -45,6 +45,6 @@ echo dtype: $dtypes
 
 sleep 10
 
-cd /home/akitaitsev/code/intersubject_generalization/linear/generic_decoding/
+cd /home/akitaitsev/code/intersubject_generalization/linear/dataset2/generic_decoding/
 echo Running generic decoding on control data with pca=200
-python generic_decoding.py -real $real_files -pred $pred_files -d_type $dtypes -out $out_dirs
+python generic_decoding.py -real $real_files -pred $pred_files -regr_type $dtypes -out $out_dirs

@@ -22,11 +22,11 @@ declare -a dtypes
 ind=0
 for dtype in "subjectwise" "average"
 do
-    fot t in "0-160" "52-160"
+    for t in "0-160" "52-160"
     do
-        out_dris[$ind]=$out_base$t"/av_reps/"
+        out_dirs[$ind]=$out_base$t"/av_reps/"
         real_files[$ind]=$real_base$t"/av_reps/shared_test.pkl"
-        pred_files[$ind]=$pred_base$T"av_reps/shared_test_predicted_"$dtype".pkl"
+        pred_files[$ind]=$pred_base$t"/av_reps/Y_test_predicted_"$dtype".pkl"
         dtypes[$ind]=$dtype
         ((ind=ind+1))
    done
@@ -42,4 +42,4 @@ echo dtype: $dtypes
 
 cd /home/akitaitsev/code/intersubject_generalization/linear/dataset2/generic_decoding/
 echo Running generic decoding on control data with pca=200
-python generic_decoding.py -real $real_files -pred $pred_files -d_type $dtypes -out $out_dirs
+python generic_decoding.py -real $real_files -pred $pred_files -regr_type $dtypes -out $out_dirs

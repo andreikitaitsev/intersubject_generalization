@@ -10,7 +10,7 @@
 # 200 hz version
 
 srate=200
-dnn_dir="/scratch/akitaitsev/encoding_Ale/dnn_activations/dataset2/"
+dnn_dir="/scratch/akitaitsev/encoding_Ale/dataset2/dnn_activations//"
 eeg_dir_base="/scratch/akitaitsev/intersubject_generalization/linear/dataset2/featurematrices/"$srate"hz/time_window"
 out_dir_base="/scratch/akitaitsev/intersubject_generalization/linear/dataset2/regression/raw/"$srate"hz/time_window"
 
@@ -39,4 +39,4 @@ echo out_dir: $out_dirs
 echo regr type: $regr_types
 cd /home/akitaitsev/code/intersubject_generalization/linear/dataset2/regression/
 
-python linear_regression.py -eeg_dir $eeg_dirs -dnn_dir $dnn_dir -out_dir $out_dirs -is_raw "True" -regr_type $regr_types
+python linear_regression.py -eeg_dir $eeg_dirs -dnn_dir $dnn_dir -out_dir $out_dirs -is_raw -regr_type $regr_types

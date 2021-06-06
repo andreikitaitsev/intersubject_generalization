@@ -52,11 +52,12 @@ if __name__ =='__main__':
     parser.add_argument('-is_raw', action='store_true', default=False, help='Bool, raw data flag.')
     parser.add_argument('-regr_type', type=str, default=None, help='average/subjectwise/cv. Whether to perform regression on '
     'data averaged across all subjects, subjectwiese or in cross-validation framework.')
-    
+    args=parser.parse_args()
+
     # Load shared space eeg data of shape (subj, features, images)
-    if bool(args.is_raw):
+    if args.is_raw:
         filenames=['featurematrix_train.pkl', 'featurematrix_test.pkl'] 
-    elif not bool(args.is_raw):
+    elif not args.is_raw:
         filenames = ['shared_train.pkl', 'shared_test.pkl']
     try:
         Y_train, Y_test = load_intersubject_eeg(args.eeg_dir, filenames)
@@ -65,10 +66,10 @@ if __name__ =='__main__':
         sys.exit(0)    
     
     # Load dnn activations
-    X_tr, X_val, X_test = load_dnn_data('CORnet-S', 1000, args.dnn_dir)
+    X_tr, X_test = load_dnn_data('CORnet-S', 1000, args.dnn_dir)
 
     # linear regression    
-    Y_test_pred, trained_regrs = linear_regression(X_tr, X_test, Y_train, Y_test,\
+    Y_test_pred, trained_regrs = linear_regression_simple(X_tr, X_test, Y_train, Y_test,\
         args.regr_type)
 
     # save predicted eeg

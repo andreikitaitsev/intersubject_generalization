@@ -23,7 +23,7 @@ ind=0
 for t in "0-40" "13-40"
 do
     inp_dirs[$ind]=$inp_dir$t"/av_reps/"
-    out_dirs[$ind]=$out_dir$t"av_reps/"
+    out_dirs[$ind]=$out_dir$t"/av_reps/"
     ((ind=ind+1))
 done
 

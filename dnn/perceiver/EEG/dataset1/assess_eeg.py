@@ -13,33 +13,32 @@ from sklearn.preprocessing import StandardScaler
 
 # Load data
 def load_dnn_data(net, n_pca, project_dir):
-	"""Loading the DNN activations of training, validation and test data.
-	Parameters
-	----------
-	net : str
-			Used DNN net.
-	n_pca : int
-			PCA downsampling dimensionality of DNN activations.
-	project_dir : str
-			Directory of the project folder.
+    """Loading the DNN activations of training, validation and test data.
+    Parameters
+    ----------
+    net : str
+            Used DNN net.
+    n_pca : int
+            PCA downsampling dimensionality of DNN activations.
+    project_dir : str
+            Directory of the project folder.
 
-	Returns
-	-------
-	DNN activations of training, validation and test data.
-	"""
+    Returns
+    -------
+    DNN activations of training, validation and test data.
+    """
 
     # DNN activations directory ###
-	data_dir = "pca_activations/" + net + "/layers-combined/" \
-			+ "normal_images/pca_" + format(n_pca, "05")
-	file_name = "pca_fmaps.npy"
-	# Loading the DNN activations ###
-	activations = np.load(os.path.join(project_dir, data_dir, file_name), \
-			allow_pickle=True).item()
-
-	X_train = activations["fmaps_train"]
-	X_val = activations["fmaps_val"]
-	X_test = activations["fmaps_test"]
-	return X_train, X_val, X_test
+    data_dir = "pca_activations/" + net + "/layers-combined/" \
+            + "pca_" + format(n_pca, "05")
+    file_name = "pca_fmaps.npy"
+    # Loading the DNN activations ###
+    activations = np.load(os.path.join(project_dir, data_dir, file_name), \
+        allow_pickle=True).item()
+    X_train = activations["fmaps_train"]
+    X_val = activations["fmaps_val"]
+    X_test = activations["fmaps_test"]
+    return X_train, X_val, X_test
 
 def load_intersubject_eeg(inp_dir, filenames):
     '''Loads the output of linear_intersubject_generalization_utils.py
@@ -218,7 +217,7 @@ def assess_eeg(Y_train, Y_test, top=1):
     '''
 
     # Load DNN data
-    dnn_dir='/scratch/akitaitsev/encoding_Ale/dnn_activations/'
+    dnn_dir='/scratch/akitaitsev/encoding_Ale/dataset1/dnn_activations/'
     X_tr, X_val, X_test = load_dnn_data('CORnet-S', 1000, dnn_dir) 
     
     # Regression

@@ -38,7 +38,7 @@ def linear_regression_simple(X_tr, X_test, Y_train, Y_test, regr_type):
             trained_regrs[-1].fit(scaler.fit_transform(X_tr), Y_train[subj])
             Y_test_pred.append(trained_regrs[-1].predict(scaler.fit_transform(X_test)))
         Y_test_pred = np.stack(Y_test_pred, axis=0)
-    return Y_test, trained_regrs
+    return Y_test_pred, trained_regrs
 
 
 if __name__ =='__main__':

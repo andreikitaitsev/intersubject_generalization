@@ -50,12 +50,13 @@ def create_dataset_matrix(dataset, data_dir, srate=50, subjects = None, \
             ('hz-'+'{0:04d}'.format(srate)),'preprocessed_data.npy'), allow_pickle=True).item()
         dat = dat["prepr_data"]
         if dataset == "test": #shape (sess, im, rep, ch, time)
-            dat = np.transpose(dat, (1,0,2,3,4)) # shape (im, sess, rep, ch, time)
-            im, sess, rep, ch, time = dat.shape
-            dat = np.reshape(dat, (im, sess*rep, ch, time)) 
+            #dat = np.transpose(dat, (1,0,2,3,4)) # shape (im, sess, rep, ch, time)
+            #im, sess, rep, ch, time = dat.shape
+            #dat = np.reshape(dat, (im, sess*rep, ch, time)) 
             # to shape (im, rep, ch, time), where reps are from different sessions
-            inds = np.random.permutation(np.linspace(0, sess*rep, sess*rep, endpoint=False, dtype=int))
-            dat = dat[:, inds, :, :]  # repetitions randomly come from diff sessions 
+            #inds = np.random.permutation(np.linspace(0, sess*rep, sess*rep, endpoint=False, dtype=int))
+            #dat = dat[:, inds, :, :]  # repetitions randomly come from diff sessions 
+            dat = np.mean(dat, axis=0)
         elif dataset == "train":
             pass
         # dat is now of shape (ims, reps, chs, times)

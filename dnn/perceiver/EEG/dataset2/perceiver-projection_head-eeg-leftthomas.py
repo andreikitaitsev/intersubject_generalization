@@ -71,7 +71,7 @@ class eeg_dataset_test(torch.utils.data.Dataset):
     '''EEG dataset for testing DNNs. 
     Getitem returns EEG 3d matrix of EEG responses of 
     all subjects for one (same) image presentation.'''
-    def __init__(self, eeg_dataset, net, transform=None):
+    def __init__(self, eeg_dataset, net, has_reps=False, transform=None):
         '''
         Inputs:
         eeg_dataset - numpy array of eeg dataset of 
@@ -80,6 +80,8 @@ class eeg_dataset_test(torch.utils.data.Dataset):
                       eeg dataset. If None, converts 
                       EEG dataset to tensor.
                       Default = None.
+        has_reps - bool, True if dataset was not averaged 
+            over image repetitions (ndim=5). Default = False(ndim=4)
         net - str, type of net to use. resnet or perceiver.
             If resnet, getitem returns batches of shape
             (ims, 1, eeg_chan, time), where 1 is n channels
@@ -88,6 +90,12 @@ class eeg_dataset_test(torch.utils.data.Dataset):
             (ims, eeg_chan, time, 1), where 1 is n channels
         '''
         self.net = net
+        if has_reps:
+            if np.ndim(eeg_dataset) != 5:
+                raise ValueError('has_reps=True, dataset of ndim=5 of shape '
+                '(subj, im, rep, ch, time) is expected. Got dataset of shape '
+                +str(np.ndim(eeg_dataset) + ' instead.')
+            eeg_dataset = np.mean(eeg_dataset, axis=2)
         if transform == None:
             self.eeg = torch.tensor(eeg_dataset)
         else:
@@ -119,14 +127,16 @@ class eeg_dataset_train(torch.utils.data.Dataset):
     '''EEG dataset for tarining DNNs with contrasttive loss.
     Returns EEG response of 2 randomly picked 
     non-overlapping subjects.'''
-    def __init__(self, eeg_dataset, net, transform = None, debug=False):
+    def __init__(self, eeg_dataset, net, has_reps=False, transform = None, debug=False):
         '''
         Inputs:
             eeg_dataset - numpy array of eeg dataset of 
-            shape (subj, ims, chans, times)
+                shape (subj, ims, ch, times) or (subj, ims, reps, ch, times)
             transformer - transformer to apply to the 
-                          eeg dataset. If None, converts 
-                          eeg_dataset to tensor
+                eeg dataset. If None, converts 
+                eeg_dataset to tensor
+            has_reps - bool, True if dataset was not averaged 
+                over image repetitions (ndim=5). Default = False(ndim=4)
             net - str, type of net to use. resnet or perceiver.
                 If resnet, getitem returns batches of shape
                 (idx, 1, eeg_chan, time), where 1 is n channels
@@ -135,8 +145,9 @@ class eeg_dataset_train(torch.utils.data.Dataset):
                 (idx, ch, time, eeg_chan, 1), where 1 is n channels
         Ouputs: 
             out1,out2 - 4d tensors of shape 
-                resnet: (ims, chans, eeg_chans, times)
-                perceiver: (ims, eeg_chans, times, chans)
+                resnet: (ims, 1, eeg_chans, times)
+                perceiver: (ims, eeg_chans, times, 1)
+            where 1 is n_channels
         '''
         if transform == None:
             self.eeg = torch.tensor(eeg_dataset)
@@ -144,6 +155,7 @@ class eeg_dataset_train(torch.utils.data.Dataset):
             self.eeg = self.transformer(eeg_dataset)
         self.debug = debug
         self.net = net
+        self.has_reps = has_reps
 
     def __len__(self):
         '''Return number of images'''
@@ -156,14 +168,22 @@ class eeg_dataset_train(torch.utils.data.Dataset):
         subj_idx = np.random.permutation(np.linspace(0, self.eeg.shape[0],\
             self.eeg.shape[0], endpoint=False, dtype=int))
 
-        batch1 = self.eeg[subj_idx[0],idx,:,:].type(torch.float32) # (idx, eeg_ch,time)
-        batch2 = self.eeg[subj_idx[1],idx,:,:].type(torch.float32)
+        if self.has_reps:
+            rep_idx = np.random.permutation(np.linspace(0, self.eeg.shape[2],\
+                self.eeg.shape[2], endpoint=False, dtype=int)) 
+            batch1 = self.eeg[subj_idx[0], idx, rep_idx[0], :, :].type(torch.float32)  
+            batch2 = self.eeg[subj_idx[1], idx, rep_idx[0], :, :].type(torch.float32)
+        else:
+            batch1 = self.eeg[subj_idx[0],idx,:,:].type(torch.float32) # (idx, eeg_ch,time)
+            batch2 = self.eeg[subj_idx[1],idx,:,:].type(torch.float32)
+        
         if self.net == 'resnet':
             batch1 = batch1.unsqueeze(0)
             batch2 = batch2.unsqueeze(0)
         elif self.net == 'perceiver':
             batch1 = batch1.unsqueeze(-1)
             batch2 = batch2.unsqueeze(-1)
+        
         if self.debug:
             print("Subject indices to be shuffled: "+' '.join(map(str, subj_idx.tolist())))
             print("Indexing for batch 1: [{:d}:{:d},:,:]".format(\
@@ -357,6 +377,8 @@ if __name__=='__main__':
     parser.add_argument('-pick_best_net_state',  action='store_true', default=False, help='Flag, whether to pick up the model with best '
     'generic decoding accuracy on encoder projection head layer over epta epochs to project the data. If false, uses model at '
     'the last epoch to project dadta. Default=False.')
+    parser.add_argument('-has_reps',  action='store_true', default=False, help='Flag, whether the EEG dataset has repetitions '
+    '(was not averaged over them) and is of shape (subj, im, rep, ch, time). Default=False.')
     args=parser.parse_args()
 
     n_workers=args.n_workers
@@ -376,9 +398,9 @@ if __name__=='__main__':
     data_train = joblib.load(datasets_dir.joinpath('dataset_train.pkl'))
     data_test = joblib.load(datasets_dir.joinpath('dataset_test.pkl'))
    
-    dataset_train = eeg_dataset_train(data_train, net='perceiver')
-    dataset_test = eeg_dataset_test(data_test, net='perceiver')
-    dataset_train_for_assessment = eeg_dataset_test(data_train, net='perceiver')
+    dataset_train = eeg_dataset_train(data_train, net='perceiver', has_reps=args.has_reps)
+    dataset_test = eeg_dataset_test(data_test, net='perceiver', has_reps=args.has_reps)
+    dataset_train_for_assessment = eeg_dataset_test(data_train, net='perceiver', has_reps=args.has_reps)
 
     train_dataloader = torch.utils.data.DataLoader(dataset_train, batch_size=args.batch_size,\
                                                 shuffle=True, num_workers=n_workers,\
@@ -389,6 +411,10 @@ if __name__=='__main__':
     train_dataloader_for_assessment = torch.utils.data.DataLoader(dataset_train_for_assessment,\
                                                 batch_size=None, shuffle = False, num_workers=n_workers,\
                                                 drop_last=False)
+
+    # create out dir if necessary
+    if not out_dir.is_dir():
+        out_dir.mkdir(parents=True)
 
     # logging
     writer = SummaryWriter(out_dir.joinpath('runs'))    
@@ -532,8 +558,6 @@ if __name__=='__main__':
     projected_eeg["test"]["encoder"] = project_eeg(model, test_dataloader, layer="proj_head") 
     projected_eeg["test"]["projection_head"] = project_eeg(model, test_dataloader, layer="proj_head") 
     
-    if not out_dir.is_dir():
-        out_dir.mkdir(parents=True)
 
     # save projected EEG 
     joblib.dump(projected_eeg, out_dir.joinpath('projected_eeg.pkl'))

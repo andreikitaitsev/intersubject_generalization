@@ -19,17 +19,13 @@ def dataset2feature_matrix(dataset):
         dataset - nd numpy array of shape (subj, im, chans, time)
                   or (subj, im, reps, chans, time)
     Output:
-        feature_matrix - 3d np.array of shape (subjs, features, images),
-        If dataset has reps, treat repretitions as images (ims=ims*reps)
+        feature_matrix - np.array of shape 
+            (subjs, features, images) - if dataset has no reps (ndim=4)
+            (subj, im, rep, ch, time) - if dataset has reps, pass 
     '''
     # if has reps
     if np.ndim(dataset) == 5: # (subj, im, rep, ch, time) 
-        subj, im, rep, ch, times = dataset.shape
-        # treat repetitions as separate images
-        dataset = np.reshape(dataset, (subj, im*rep, ch, times)) 
-        dataset = np.transpose(dataset, (0,2,3,1)) 
-        new_im = dataset.shape[-1]
-        dataset = np.reshape(dataset, (subj, -1, new_im))
+        pass
     # if no reps
     elif np.ndim(dataset)==4: # (subj, im, ch, time)
         subj, im, ch, time= dataset.shape

@@ -1,7 +1,7 @@
 *.out
 __pycache__/
 *.pkl
-*data/cifar*
+*/data/cifar-*
 *.gz
 *.swp
 *.swo

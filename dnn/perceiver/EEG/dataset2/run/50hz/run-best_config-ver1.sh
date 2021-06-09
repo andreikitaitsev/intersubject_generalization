@@ -15,7 +15,7 @@
 
 tw="13-40"
 srate=50
-out_dir="/scratch/akitaitsev/intersubject_generalization/dnn/perceiver/EEG/dataset2/leftthomas/projection_head/"$srate"hz/best_config-ver1/"
+out_dir="/scratch/akitaitsev/intersubject_generalization/dnn/perceiver/EEG/dataset2/leftthomas/projection_head/"$srate"hz/av_reps/best_config-ver1/"
 eeg_dir="/scratch/akitaitsev/intersubject_generalization/linear/dataset2/dataset_matrices/"$srate"hz/time_window"$tw"/av_reps/"
 # Non variable params
 lr=0.0001

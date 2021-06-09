@@ -24,6 +24,7 @@ def _linear_regression_simple(X_tr, X_val, X_test, Y_train, Y_val, Y_test, regr_
     Y_val = np.transpose(np.array(Y_val), (0,2,1))
     Y_test = np.transpose(np.array(Y_test), (0,2,1))
 
+    n_subj=Y_train.shape[0]
     scaler = StandardScaler()
     regr = LinearRegression()
     trained_regrs = []
@@ -39,7 +40,7 @@ def _linear_regression_simple(X_tr, X_val, X_test, Y_train, Y_val, Y_test, regr_
     elif regr_type == 'subjectwise':
         Y_val_pred=[]
         Y_test_pred=[]
-        for subj in range(7):
+        for subj in range(n_subj):
             trained_regrs.append(copy.deepcopy(regr))
             trained_regrs[-1].fit(scaler.fit_transform(X_tr), Y_train[subj])
             Y_val_pred.append(trained_regrs[-1].predict(scaler.fit_transform(X_val)))
@@ -64,6 +65,7 @@ def _linear_regression_sliding_window(X_tr, X_val, X_test, Y_train, Y_val, Y_tes
         Y_train_it = np.transpose(np.array(Y_train_it), (0,2,1))
         Y_val_it = np.transpose(np.array(Y_val_it), (0,2,1))
         Y_test_it = np.transpose(np.array(Y_test_it), (0,2,1))
+        n_subj=Y_train.shape[0]
         if regr_type == 'average':
             Y_train_it = np.mean(Y_train_it, axis=0) 
             Y_val_it = np.mean(Y_val_it, axis=0) 
@@ -80,7 +82,7 @@ def _linear_regression_sliding_window(X_tr, X_val, X_test, Y_train, Y_val, Y_tes
             Y_test_pred_it = []
             scalers_it=[]
             regrs_it=[]
-            for subj in range(7):
+            for subj in range(n_subj):
                 regrs_it.append(copy.deepcopy(regr))
                 scalers_it.append(copy.deepcopy(scaler))
                 regrs_it[-1].fit(scalers_it[-1].fit_transform(X_tr), Y_train_it[subj])

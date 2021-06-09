@@ -8,7 +8,7 @@ import joblib
 from pathlib import Path
 
 def create_dataset_matrix(dataset, data_dir, srate=50, subjects = None, \
-    av_reps=True):
+    no_av_reps=False):
     '''
     Function packs datasets from single subject and session
     into a single matrix.
@@ -23,8 +23,8 @@ def create_dataset_matrix(dataset, data_dir, srate=50, subjects = None, \
         subjects - list/tuple of str of subject numbers in form (01,02,etc.).
                     Default = None (then uses all subjs
                     [01, 02, 03, 04, 05, 06, 07]) 
-        av_reps - average_repetitions - bool, whether to average over repetitions.
-                              Default = True
+        no_av_reps - do not average_repetitions - bool.
+                    Default = False
     Outputs:
         packed_dataset - nd numpy array of shape 
         
@@ -62,7 +62,7 @@ def create_dataset_matrix(dataset, data_dir, srate=50, subjects = None, \
         # dat is now of shape (ims, reps, chs, times)
         data_subj.append(dat)
     data = np.stack(data_subj, axis=0) # shape (subj, im, reps, chans, times)
-    if av_reps:
+    if not no_av_reps:
         data = np.mean(data, axis = 2) # shape (subj, im, chans, times)
     return data
 
@@ -78,13 +78,14 @@ if __name__=='__main__':
     parser.add_argument('-srate', type=int, default=50, help='sampling rate of EEG to load. Default=50.')
     parser.add_argument('-omit_val',type=bool, default=True, help='whether to omit validation set. Dataset2 does not '
     'have val dataset.')
-    parser.add_argument('-av_reps',type=bool, default=True, help='whether to average across repetitions. If true, '
-    'dataset.shape = (subj, im, ch, time), if False dataset.shape = (subj, im, reps, ch, time). Default=True.')
+    parser.add_argument('-no_av_reps',default=False, action='store_true', help='Flag, whether to average '
+    'across repetitions. True: dataset.shape = (subj, im, ch, time), False: dataset.shape = (subj, im, reps, ch, time).'
+    'Default=False.')
     args = parser.parse_args() 
 
     # create train, val and test datasets
-    dataset_train = create_dataset_matrix('train', args.input_dir, srate=args.srate, av_reps=args.av_reps)
-    dataset_test = create_dataset_matrix('test', args.input_dir, srate=args.srate, av_reps=args.av_reps)
+    dataset_train = create_dataset_matrix('train', args.input_dir, srate=args.srate, no_av_reps=args.no_av_reps)
+    dataset_test = create_dataset_matrix('test', args.input_dir, srate=args.srate, no_av_reps=args.no_av_reps)
     if not args.omit_val: 
         dataset_val = create_dataset_matrix('val', args.input_dir, srate=args.srate)
     # check if specific time windows shall be used

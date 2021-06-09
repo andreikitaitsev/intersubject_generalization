@@ -41,7 +41,7 @@ fls50 = (Path('raw/50hz/time_window'+str(tw50)).joinpath('av_reps'), \
 fpaths50 = []
 for fl in fls50:
     fpaths50.append(base_dir.joinpath(fl))
-import ipdb; ipdb.set_trace()
+
 fig50, ax50 = topplot_av_sw(av_fname, sw_fname, fpaths50, top=args.top, labels=labels, title=\
     ('Top '+str(args.top)+' generic decoding for time window 13-40, 50hz'))
 
@@ -73,6 +73,11 @@ fig200, ax200 = topplot_av_sw(av_fname, sw_fname, fpaths200, top=args.top, label
 
 fignames=( 'top_'+str(args.top)+'_time_window13-40_50hz', 'top_'+str(args.top)+'_time_window26-80_100hz',\
     'top_'+str(args.top)+'_time_window52-160_200hz')
+
+out_dir = Path(args.output_dir) 
+if not out_dir.is_dir():
+    out_dir.mkdir(parents=True)
+
 figs=(fig50, fig100, fig200)
 for num, fig in enumerate(figs):
-    fig.savefig(Path(args.output_dir).joinpath(fignames[num]))
+    fig.savefig(out_dir.joinpath(fignames[num]))

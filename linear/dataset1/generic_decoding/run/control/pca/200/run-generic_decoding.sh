@@ -23,7 +23,7 @@ do
     do
         out_dirs[$ind]=$out_base$t
         real_files[$ind]=$real_base$t"/shared_test.pkl"
-        pred_files[$ind]=$pred_base$t"/shared_test_predicted_"$dtype".pkl"
+        pred_files[$ind]=$pred_base$t"/Y_test_predicted_"$dtype".pkl"
         dtypes[$ind]=$dtype
         ((ind=ind+1))
     done
@@ -45,4 +45,4 @@ sleep 10
 
 cd /home/akitaitsev/code/intersubject_generalization/linear/generic_decoding/
 echo Running generic decoding on control data with pca=200
-python generic_decoding.py -real $real_files -pred $pred_files -d_type $dtypes -out $out_dirs
+python generic_decoding.py -real $real_files -pred $pred_files -regr_type $dtypes -out $out_dirs

@@ -21,6 +21,7 @@ def linear_regression_simple(X_tr, X_test, Y_train, Y_test, regr_type):
     # transpose eeg to shape (subj,images, features)
     Y_train = np.transpose(np.array(Y_train), (0,2,1))
     Y_test = np.transpose(np.array(Y_test), (0,2,1))
+    n_subj=Y_train.shape[0]
     scaler = StandardScaler()
     regr = LinearRegression()
     trained_regrs = []
@@ -33,7 +34,7 @@ def linear_regression_simple(X_tr, X_test, Y_train, Y_test, regr_type):
         trained_regrs.append(regr)
     elif regr_type == 'subjectwise':
         Y_test_pred=[]
-        for subj in range(7):
+        for subj in range(n_subj):
             trained_regrs.append(copy.deepcopy(regr))
             trained_regrs[-1].fit(scaler.fit_transform(X_tr), Y_train[subj])
             Y_test_pred.append(trained_regrs[-1].predict(scaler.fit_transform(X_test)))

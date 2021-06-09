@@ -10,7 +10,7 @@ inp_dir="/scratch/akitaitsev/intersubject_generalizeation/linear/dataset1/raw_ee
 out_dir0_40="/scratch/akitaitsev/intersubject_generalizeation/linear/dataset1/dataset_matrices/50hz/time_window0-40/"
 out_dir13_40="/scratch/akitaitsev/intersubject_generalizeation/linear/dataset1/dataset_matrices/50hz/time_window13-40/"
 
-cd /home/akitaitsev/code/intersubject_generalization/linear/create_featurematrices/ 
+cd /home/akitaitsev/code/intersubject_generalization/linear/dataset1/create_featurematrices/ 
 
 echo Creating feature matrix for time window 0-40
 python create_dataset_matrix.py -inp $inp_dir -out $out_dir0_40 -time 0 40 

@@ -15,7 +15,7 @@ declare -a out_dirs
 batch_size=64
 n_epochs=200
 bpl=50
-out_dir="/scratch/akitaitsev/intersubject_generalization/dnn/resnet50/EEG/leftthomas/"
+out_dir="/scratch/akitaitsev/intersubject_generalization/dnn/resnet50/EEG/dataset1/50hz/gridsearch-lr/leftthomas/"
 
 lr_ar=(0.001 0.0001 0.00001 0.000001) #1e-3 1e-4 1e-5 1e-6
 

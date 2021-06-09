@@ -230,28 +230,33 @@ def ContrastiveLoss_leftthomas(out1, out2, batch_size, temperature, normalize="n
     loss = (- torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
     return loss
 
-class Model(nn.Module):
+class resnet50_leftthomas(nn.Module):
     ''' Input size shall be (images, channels, pix, pix).
         n_chan - number of channels in the input data.
     '''
-    def __init__(self, feature_dim=128, n_chan=1):
-        super(Model, self).__init__()
-
+    def __init__(self, n_chan=1, out_ch=64, kernel_size=3,\
+        proj_head_inp_dim=2048, proj_head_intermediate_dim=512, feature_dim=128):
+        super(resnet50_leftthomas, self).__init__()
+        self.register_buffer('proj_head_inp_dim', torch.tensor(proj_head_inp_dim))
         self.f = []
         for name, module in resnet50().named_children():
             if name == 'conv1':
-                module = nn.Conv2d(n_chan, 64, kernel_size=3, stride=1, padding=1, bias=False)
+                module = nn.Conv2d(n_chan, out_ch, kernel_size=kernel_size,\
+                    stride=1, padding=1, bias=False)
             if not isinstance(module, nn.Linear) and not isinstance(module, nn.MaxPool2d):
                 self.f.append(module)
         # encoder
         self.f = nn.Sequential(*self.f)
         # projection head
-        self.g = nn.Sequential(nn.Linear(2048, 512, bias=False), nn.BatchNorm1d(512),
-                               nn.ReLU(inplace=True), nn.Linear(512, feature_dim, bias=True))
+        self.g = nn.Sequential(nn.Linear(proj_head_inp_dim, proj_head_intermediate_dim, bias=False),\
+                nn.BatchNorm1d(proj_head_intermediate_dim), nn.ReLU(inplace=True), \
+                nn.Linear(proj_head_intermediate_dim, feature_dim, bias=True))
 
     def forward(self, x):
         x = self.f(x)
         feature = torch.flatten(x, start_dim=1)
+        if self.proj_head_inp_dim != feature.shape[1]:
+            feature = torch.squeeze(torch.nn.functional.interpolate(feature.unsqueeze(0), int(self.proj_head_inp_dim)),0)
         out = self.g(feature)
         return F.normalize(feature, dim=-1), F.normalize(out, dim=-1)
 
@@ -389,8 +394,24 @@ if __name__=='__main__':
     'bacth_per_loss mini-batches. Default=20.')
     parser.add_argument('-epta','--epochs_per_test_accuracy',type=int, default=1, help='Save test '
     'set accuracy every epochs_per_test_accuracy  epochs. Default == 1')
-    parser.add_argument('-feature_dim', type=int, default=200, help='Num features in projection '
+    parser.add_argument('-n_chan', type=int, default=1, help='Num input channels. Change only '
+    'when treating different subjects as channels. Defautl = 1.') 
+    parser.add_argument('-out_ch', type=int, default=64, help='Num output channels in ecnoder resnet50 '
+    'layer. Defautl = 64.') 
+    parser.add_argument('-kernel_size', type=int, default=3, help='Kernel size in conv2d of encoder layer. '
+    'Defautl = 3.') 
+    parser.add_argument('-proj_head_inp_dim', type=int, default=2048, help='Input dim of projection head '
+    'layer. Default=2048')
+    parser.add_argument('-proj_head_intermediate_dim', type=int, default=512, help='Intermediate dim of '
+    'projection head layer. Default=512.')
+    parser.add_argument('-feature_dim', type=int, default=200, help='Num output features in projection '
     'head layer of the model. Defautl = 200.') 
+    parser.add_argument('-pick_best_net_state',  action='store_true', default=False, help='Flag, whether to pick '
+    'up the model with best generic decoding accuracy on encoder projection head layer over epta epochs to '
+    'project the data. If false, uses model at the last epoch to project dadta. Default=False.')
+    parser.add_argument('-eeg_dir',  type=str, default='/scratch/akitaitsev/intersubject_generalization/linear/'
+    '/dataset1/dataset_matrices/50hz/time_window13-40/', help='EEG dataset dir. Default= '
+    '/scratch/akitaitsev/intersubject_generalization/linear/dataset1/dataset_matrices/50hz/time_window13-40/')
     args=parser.parse_args()
 
     featuredim=args.feature_dim
@@ -405,8 +426,7 @@ if __name__=='__main__':
     temperature = args.temperature
 
     # EEG datasets
-    datasets_dir = Path('/scratch/akitaitsev/intersubject_generalization/linear/',\
-        'dataset_matrices/50hz/time_window13-40/') 
+    datasets_dir = Path(args.eeg_dir)
     data_train = joblib.load(datasets_dir.joinpath('dataset_train.pkl'))
     data_test = joblib.load(datasets_dir.joinpath('dataset_test.pkl'))
    
@@ -428,7 +448,8 @@ if __name__=='__main__':
     writer = SummaryWriter(out_dir.joinpath('runs'))    
 
     # define the model
-    model = Model(featuredim)
+    model = resnet50_leftthomas(args.n_chan, args.out_ch, args.kernel_size, args.proj_head_inp_dim,\
+        args.proj_head_intermediate_dim, args.feature_dim)
 
     if gpu and n_workers >=1:
         warnings.warn('Using GPU and n_workers>=1 can cause some difficulties.')
@@ -460,6 +481,7 @@ if __name__=='__main__':
     accuracies["projection_head"]["subjectwise"]["mean"] = []
     accuracies["projection_head"]["subjectwise"]["SD"] = []
     cntr_epta=0 
+    net_states=[]
 
     # Loop through EEG dataset in batches
     for epoch in range(n_epochs):
@@ -468,14 +490,14 @@ if __name__=='__main__':
         tic = time.time()
         losses["epoch"+str(epoch)]=[]
         accuracies["epoch"+str(epoch)]=[]
-
+        batch_counter=0
         for batch1, batch2 in train_dataloader:
             if args.gpu:
                 batch1 = batch1.cuda()
                 batch2 = batch2.cuda()
             feature1, out1 = model.forward(batch1)
             feature2, out2 = model.forward(batch2)
-           
+
             # compute loss
             loss = ContrastiveLoss_leftthomas(out1, out2, args.batch_size, args.temperature)
             losses["epoch"+str(epoch)].append(loss.cpu().detach().numpy())
@@ -536,11 +558,17 @@ if __name__=='__main__':
                     len(train_dataloader)*cntr_epta) 
             writer.add_scalar('accuracy_proj_head_sw', sw_PH[0],\
                     len(train_dataloader)*cntr_epta) 
+
+            if args.pick_best_net_state:
+                net_states.append(copy.deepcopy(model.state_dict()))
+
         cntr_epta += 1
     writer.close()
 
-    if not out_dir.is_dir():
-        out_dir.mkdir(parents=True)
+    # select net state which yieled best accuracy on encoder average 
+    if args.pick_best_net_state:
+        best_net_state = net_states[ np.argmax(accuracies["encoder"]["average"]) ]
+        model.load_state_dict(best_net_state)
 
     # Project EEG into new space using trained model
     projected_eeg = defaultdict()
@@ -551,6 +579,9 @@ if __name__=='__main__':
     projected_eeg["test"]["encoder"] = project_eeg(model, test_dataloader, layer="proj_head") 
     projected_eeg["test"]["projection_head"] = project_eeg(model, test_dataloader, layer="proj_head") 
     
+    if not out_dir.is_dir():
+        out_dir.mkdir(parents=True)
+
     # save projected EEG 
     joblib.dump(projected_eeg, out_dir.joinpath('projected_eeg.pkl'))
 

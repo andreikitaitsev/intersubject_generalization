@@ -92,9 +92,10 @@ class eeg_dataset_test(torch.utils.data.Dataset):
         self.net = net
         if has_reps:
             if np.ndim(eeg_dataset) != 5:
-                raise ValueError('has_reps=True, dataset of ndim=5 of shape '
-                '(subj, im, rep, ch, time) is expected. Got dataset of shape '
-                +str(np.ndim(eeg_dataset) + ' instead.')
+                er_text='has_reps=True, dataset of ndim=5 of shape '+\
+                '(subj, im, rep, ch, time) is expected. Got dataset of shape '+\
+                str(np.ndim(eeg_dataset)) +' instead.'
+                raise ValueError(er_text)
             eeg_dataset = np.mean(eeg_dataset, axis=2)
         if transform == None:
             self.eeg = torch.tensor(eeg_dataset)
@@ -172,7 +173,7 @@ class eeg_dataset_train(torch.utils.data.Dataset):
             rep_idx = np.random.permutation(np.linspace(0, self.eeg.shape[2],\
                 self.eeg.shape[2], endpoint=False, dtype=int)) 
             batch1 = self.eeg[subj_idx[0], idx, rep_idx[0], :, :].type(torch.float32)  
-            batch2 = self.eeg[subj_idx[1], idx, rep_idx[0], :, :].type(torch.float32)
+            batch2 = self.eeg[subj_idx[1], idx, rep_idx[1], :, :].type(torch.float32)
         else:
             batch1 = self.eeg[subj_idx[0],idx,:,:].type(torch.float32) # (idx, eeg_ch,time)
             batch2 = self.eeg[subj_idx[1],idx,:,:].type(torch.float32)

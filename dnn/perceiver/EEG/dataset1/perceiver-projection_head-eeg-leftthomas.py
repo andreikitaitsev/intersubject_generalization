@@ -346,7 +346,7 @@ if __name__=='__main__':
     parser.add_argument('-perc_latent_heads', type=int, default=8, help='Number of latent cross-attention heads. '
     'Default=8.')
     parser.add_argument('-perc_depth', type=int, default=6, help='Depth of net. Default=6.')
-    parser.add_argument('-perc_share_weights', type=bool, default=False, help='Whether to share weights in perceiver.'
+    parser.add_argument('-perc_share_weights', action='store_true', default=False, help='Flag, whether to share weights in perceiver.'
     'Default = False.')
     parser.add_argument('-out_dim_ENC','--out_dim_encoder', type=int, default=512, help='Output dimensions of encoder. If no '
     'projection head, final output dimensions. Default=200.')

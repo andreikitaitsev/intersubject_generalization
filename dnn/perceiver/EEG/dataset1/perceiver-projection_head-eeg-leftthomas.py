@@ -22,7 +22,18 @@ class perceiver_projection_head(Perceiver):
         perc_out_dim = 512,\
         proj_head_inp_dim = None, \
         proj_head_intermediate_dim = 512,\
-        proj_head_out_dim = 200): 
+        proj_head_out_dim = 200,\
+        
+        perc_cross_heads=1,\
+        perc_cross_dim_head=64,\
+        perc_latent_dim_head=64,\
+        perc_attn_dropout=0,\
+        perc_ff_dropout=0,\
+        perc_self_per_cross_attn=2,\
+        perc_num_freq_bands=6,\
+        ): 
+        
+
         
         self.perc_latent_array_dim = perc_latent_array_dim 
         self.perc_num_latent_dim = perc_num_latent_dim 
@@ -31,8 +42,17 @@ class perceiver_projection_head(Perceiver):
         self.perc_weight_tie_layers = perc_weight_tie_layers
         self.perc_out_dim = perc_out_dim 
         self.proj_head_inp_dim = proj_head_inp_dim
-        self.proj_head_out_dim = proj_head_out_dim 
         self.proj_head_intermediate_dim = proj_head_intermediate_dim  
+        self.proj_head_out_dim = proj_head_out_dim 
+
+        self.perc_cross_heads = perc_cross_heads
+        self.perc_latent_dim_head = perc_latent_dim_head
+        self.perc_latent_dim_head = perc_latent_dim_head
+        self.perc_attn_dropout = perc_attn_dropout
+        self.perc_ff_dropout = perc_ff_dropout
+        self.perc_self_per_cross_attn = perc_self_per_cross_attn
+        self.perc_num_freq_bands = perc_num_freq_bands
+
         if self.proj_head_inp_dim == None:
             self.proj_head_inp_dim = self.perc_out_dim 
         super(Perceiver, self).__init__()
@@ -40,26 +60,26 @@ class perceiver_projection_head(Perceiver):
         self.encoder = Perceiver(
             input_channels = 1,          # number of channels for each token of the input
             input_axis = 2,              # number of axis for input data (2 for images, 3 for video)
-            num_freq_bands = 6,          # number of freq bands, with original value (2 * K + 1)
+            num_freq_bands = perc_num_freq_bands,  # number of freq bands, with original value (2 * K + 1)
             max_freq = 10.,              # maximum frequency, hyperparameter depending on how fine the data is
-            depth = self.perc_depth,                   # depth of net
-            num_latents = self.perc_num_latent_dim,           # number of latents, or induced set points, or centroids. 
-            latent_dim = self.perc_latent_array_dim,            # latent dimension
-            cross_heads = 1,             # number of heads for cross attention. paper said 1
-            latent_heads = self.perc_latent_heads,            # number of heads for latent self attention, 8
-            cross_dim_head = 64,
-            latent_dim_head = 64,
-            num_classes = self.perc_out_dim,          # output number of classesi = dimensionality of mvica output with 200 PCs
-            attn_dropout = 0.,
-            ff_dropout = 0.,
-            weight_tie_layers = self.perc_weight_tie_layers, # whether to weight tie layers (optional, as indicated in the diagram)
+            depth = perc_depth,                   # depth of net
+            num_latents = perc_num_latent_dim,           # number of latents, or induced set points, or centroids. 
+            latent_dim = perc_latent_array_dim,            # latent dimension
+            cross_heads = perc_cross_heads,             # number of heads for cross attention. paper said 1
+            latent_heads = perc_latent_heads,            # number of heads for latent self attention, 8
+            cross_dim_head = perc_cross_dim_head,
+            latent_dim_head = perc_latent_dim_head,
+            num_classes = perc_out_dim,          # output number of classesi = dimensionality of mvica output with 200 PCs
+            attn_dropout = perc_attn_dropout,
+            ff_dropout = perc_ff_dropout,
+            weight_tie_layers = perc_weight_tie_layers, # whether to weight tie layers (optional, as indicated in the diagram)
             fourier_encode_data = True,  # whether to auto-fourier encode the data, using the input_axis given. defaults to True, 
-            self_per_cross_attn = 2      # number of self attention blocks per cross attention
+            self_per_cross_attn = perc_self_per_cross_attn      # number of self attention blocks per cross attention
             )
 
-        self.projection_head = nn.Sequential(nn.Linear(self.proj_head_inp_dim, self.proj_head_intermediate_dim, bias=False),\
-            nn.BatchNorm1d(self.proj_head_intermediate_dim), nn.ReLU(inplace=True),\
-            nn.Linear(self.proj_head_intermediate_dim, self.proj_head_out_dim, bias=True))
+        self.projection_head = nn.Sequential(nn.Linear(self.proj_head_inp_dim, proj_head_intermediate_dim, bias=False),\
+            nn.BatchNorm1d(proj_head_intermediate_dim), nn.ReLU(inplace=True),\
+            nn.Linear(proj_head_intermediate_dim, proj_head_out_dim, bias=True))
 
     def forward(self, inp):
         encoder_output = self.encoder(inp)
@@ -346,14 +366,24 @@ if __name__=='__main__':
     parser.add_argument('-perc_latent_heads', type=int, default=8, help='Number of latent cross-attention heads. '
     'Default=8.')
     parser.add_argument('-perc_depth', type=int, default=6, help='Depth of net. Default=6.')
-    parser.add_argument('-perc_share_weights', action='store_true', default=False, help='Flag, whether to share weights in perceiver.'
-    'Default = False.')
+    parser.add_argument('-perc_share_weights', type=int, default=0, help='int, whether to share weights in perceiver.'
+    'Default = 0.')
     parser.add_argument('-out_dim_ENC','--out_dim_encoder', type=int, default=512, help='Output dimensions of encoder. If no '
     'projection head, final output dimensions. Default=200.')
     parser.add_argument('-proj_head_intermediate_dim', type=int, default=512, help='Number of dims in intermediate layer of '
     'projection head.Default=512.')
     parser.add_argument('-out_dim_PH', '--out_dim_proj_head', type=int, default=200, help='Output dimensions of encoder. If no '
     'projection head, final output dimensions. Default=200.')
+    parser.add_argument('-perc_cross_heads', type=int, default=1, help='Number of heads for cross-attention. Default=1.')
+    parser.add_argument('-perc_cross_dim_head', type=int, default=64)
+    parser.add_argument('-perc_latent_dim_head', type=int, default=64)
+    parser.add_argument('-perc_self_per_cross_attn', type=int, default=2, help='Number of self-attention blocks per '
+    'cross-attention. Default=2.')
+    parser.add_argument('-perc_attn_dropout', type=int, default=0.) 
+    parser.add_argument('-perc_ff_dropout', type=int, default=0.) 
+    parser.add_argument('-perc_num_freq_bands', type=int, default=6, help='Number of freq bands, with original value (2 * K + 1).') 
+    parser.add_argument('-clip_grad_norm', type=int, default=None, help='Int, value for gradient clipping by norm. Default=None, '
+    'no clipping.')
     parser.add_argument('-pick_best_net_state',  action='store_true', default=False, help='Flag, whether to pick up the model with best '
     'generic decoding accuracy on encoder projection head layer over epta epochs to project the data. If false, uses model at '
     'the last epoch to project dadta. Default=False.')
@@ -398,10 +428,19 @@ if __name__=='__main__':
                                         perc_num_latent_dim = args.perc_num_latent_dim,\
                                         perc_latent_heads = args.perc_latent_heads,\
                                         perc_depth = args.perc_depth,\
-                                        perc_weight_tie_layers = args.perc_share_weights,\
+                                        perc_weight_tie_layers = bool(args.perc_share_weights),\
                                         perc_out_dim = out_dim_ENC,\
                                         proj_head_intermediate_dim = args.proj_head_intermediate_dim,\
-                                        proj_head_out_dim = out_dim_PH)
+                                        proj_head_out_dim = out_dim_PH,\
+                                        
+                                        perc_cross_heads = args.perc_cross_heads,\
+                                        perc_cross_dim_head = args.perc_cross_dim_head,\
+                                        perc_latent_dim_head = args.perc_latent_dim_head,\
+                                        perc_attn_dropout = args.perc_attn_dropout,\
+                                        perc_ff_dropout = args.perc_ff_dropout,\
+                                        perc_self_per_cross_attn = args.perc_self_per_cross_attn,\
+                                        perc_num_freq_bands = args.perc_num_freq_bands,\
+                                        )
 
     if gpu and n_workers >=1:
         warnings.warn('Using GPU and n_workers>=1 can cause some difficulties.')
@@ -457,6 +496,12 @@ if __name__=='__main__':
             optimizer.zero_grad()
 
             loss.backward()
+            
+            # gradient clipping
+            if args.clip_grad_norm != None:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=args.clip_grad_norm, \
+                norm_type=2.0)
+
             optimizer.step()
            
             # save loss every bpl mini-batches

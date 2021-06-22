@@ -29,6 +29,7 @@ depth=(1 1 1 1)
 out_dim_ENC=(200 200 200 200)
 out_dim_PH=(100 100 100 100)
 cross_head=(1 1 1 1)
+cross_dim_head=(64 64 128 128)
 latent_dim_head=(64 64 256 256)
 self_per_cross_attn=(2 2 2 2)
 num_freq_band=(12 12 12 12)
@@ -45,7 +46,7 @@ lat_ar_dim=${lat_ar_dim[$SLURM_ARRAY_TASK_ID]}
 num_latent_dim=${num_latent_dim[$SLURM_ARRAY_TASK_ID]}
 latent_head=${latent_head[$SLURM_ARRAY_TASK_ID]}
 depth=${depth[$SLURM_ARRAY_TASK_ID]}
-out_dim_ENC=${out_din_ENC[$SLURM_ARRAY_TASK_ID]}
+out_dim_ENC=${out_dim_ENC[$SLURM_ARRAY_TASK_ID]}
 out_dim_PH=${out_dim_PH[$SLURM_ARRAY_TASK_ID]}
 cross_head=${cross_head[$SLURM_ARRAY_TASK_ID]}
 cross_dim_head=${cross_dim_head[$SLURM_ARRAY_TASK_ID]}
@@ -61,7 +62,7 @@ echo num_latent_dim: $num_latent_dim
 echo latent_head: $latent_head
 echo depth: $depth
 echo out_dim_ENC: $out_dim_ENC
-echo out_dimPH: $out_dim_PH
+echo out_dim_PH: $out_dim_PH
 echo cross_head: $cross_head
 echo cross_dim_head: $cross_dim_head
 echo latent_dim_head: $latent_dim_head

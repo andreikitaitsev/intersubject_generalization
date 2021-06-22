@@ -18,7 +18,7 @@ lr=0.0001
 batch_size=64
 n_epochs=200
 bpl=50
-out_dir="/scratch/akitaitsev/intersubject_generalization/dnn/perceiver/EEG/leftthomas/projection_head/hpar-grid-ver2/"
+out_dir="/scratch/akitaitsev/intersubject_generalization/dnn/perceiver/EEG/dataset1/leftthomas/projection_head/hpar-grid-ver2/"
 names=("perc_latent_array_dim" "perc_num_latent_dim" "perc_latent_heads" "perc_depth" "out_dim_ENC" "out_dim_PH")
 
 # params to make gridsearch over

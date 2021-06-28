@@ -204,31 +204,28 @@ def hist2top(hist, top, return_sd=False):
 
 # pipeline assess EEG projection quality
 
-def assess_eeg(Y_train, Y_test, top=1):
+def assess_eeg(X_train, X_test, Y_train, Y_test, top=1):
     '''
     Inputs:
-        Y_train - 3d numpy array of shape (subj, ims, features) of
-                  train set EEG data projected into shared space
-        Y_test - 3d numpy array of shape (subj, ims, features) of
-                 train set EEG data projected into shared space
+        X_train, X_test - 2d numpy arrays of DNN features for regression
+        Y_train, Y_test - 3d numpy array of shape (subj, ims, features) of
+                  train and test set EEG data projected into shared space
+        top - int, default=1
     Outputs:
         top1_av - float, ratio of top 1 predicted images
         top1_av_sd - 
     '''
 
-    # Load DNN data
-    dnn_dir='/scratch/akitaitsev/encoding_Ale/dataset1/dnn_activations/'
-    X_tr, X_val, X_test = load_dnn_data('CORnet-S', 1000, dnn_dir) 
-    
     # Regression
-    Y_pred_av, tr_regr_av = linear_regression(X_tr, X_test, Y_train, Y_test,\
+    Y_pred_av, tr_regr_av = linear_regression(X_train, X_test, Y_train, Y_test,\
         regr_type='average')
-    Y_pred_sw, tr_regr_sw = linear_regression(X_tr, X_test, Y_train, Y_test,\
+    Y_pred_sw, tr_regr_sw = linear_regression(X_train, X_test, Y_train, Y_test,\
         regr_type='subjectwise')
 
     # Generic decoding
     cor_mat_av, res_av = generic_decoding(Y_test, Y_pred_av, regr_type='average')
     cor_mat_sw, res_sw = generic_decoding(Y_test, Y_pred_sw, regr_type='subjectwise')
+
     # histograms
     hist_av = res2hist(res_av)
     hist_sw = res2hist(res_sw)

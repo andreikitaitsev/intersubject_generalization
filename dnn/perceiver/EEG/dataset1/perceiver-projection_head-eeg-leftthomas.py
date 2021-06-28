@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 from pathlib import Path
-from assess_eeg import assess_eeg
+from assess_eeg import load_dnn_data, assess_eeg
 from perceiver_pytorch import Perceiver
 
 
@@ -420,6 +420,10 @@ if __name__=='__main__':
                                                 batch_size=None, shuffle = False, num_workers=n_workers,\
                                                 drop_last=False)
 
+    # DNN data for regression
+    dnn_dir='/scratch/akitaitsev/encoding_Ale/dataset1/dnn_activations/'
+    X_train, X_val, X_test = load_dnn_data('CORnet-S', 1000, dnn_dir)
+
     # logging
     writer = SummaryWriter(out_dir.joinpath('runs'))    
 
@@ -529,8 +533,8 @@ if __name__=='__main__':
             eeg_train_projected_PH = project_eeg(model, train_dataloader_for_assessment, split_size=25) 
             eeg_test_projected_PH = project_eeg(model, test_dataloader)  
             
-            av_ENC, sw_ENC = assess_eeg(eeg_train_projected_ENC, eeg_test_projected_ENC)
-            av_PH, sw_PH = assess_eeg(eeg_train_projected_PH, eeg_test_projected_PH)
+            av_ENC, sw_ENC = assess_eeg(X_train, X_test, eeg_train_projected_ENC, eeg_test_projected_ENC)
+            av_PH, sw_PH = assess_eeg(X_train, X_test, eeg_train_projected_PH, eeg_test_projected_PH)
 
             accuracies["encoder"]["average"].append(av_ENC[0])
             accuracies["encoder"]["subjectwise"]["mean"].append(sw_ENC[0])

@@ -526,7 +526,6 @@ if __name__=='__main__':
         cntr=0
         tic = time.time()
         losses["epoch"+str(epoch)]=[]
-        accuracies["epoch"+str(epoch)]=[]
 
         for batch1, batch2 in train_dataloader:
             if args.gpu:

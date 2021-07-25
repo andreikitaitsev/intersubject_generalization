@@ -2,11 +2,11 @@
 #SBATCH --mail-user=akitaitsev@zedat.fu-berlin.de
 #SBATCH --job-name=no_av
 #SBATCH --mail-type=end
-#SBATCH --mem=20000
+#SBATCH --mem=10000
 #SBATCH --time=70:00:00
 #SBATCH --qos=prio
 #SBATCH --partition=gpu
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:1
 
 # run perceiver with best config found on dataset1
 # N JOBS = 1

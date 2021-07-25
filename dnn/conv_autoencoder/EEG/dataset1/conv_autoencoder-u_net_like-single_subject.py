@@ -6,8 +6,7 @@
 import torch 
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
-from assess_eeg import assess_eeg
-from assess_eeg import project_eeg_conv_autoenc
+from assess_eeg import assess_eeg, load_dnn_data
 from torch.utils.tensorboard import SummaryWriter
 from torch.nn.functional import interpolate
 
@@ -223,6 +222,7 @@ class conv_autoencoder(torch.nn.Module):
         if not self.dims_enc[4] == None:
             e5 = interpolate(e5, self.dims_enc[4])
         # decoder
+        import ipdb; ipdb.set_trace()
         d1=self.block1d(e5)
         if not self.dims_dec[0] == None:
             d1 = interpolate(d1, self.dims_dec[0])
@@ -243,6 +243,29 @@ class conv_autoencoder(torch.nn.Module):
         e5 = torch.reshape(e5, (e5.shape[0], -1)) #(batch_size, features) 
         return  e5, d5
 
+def project_eeg_conv_autoenc(model, dataloader):
+    '''
+    Project EEG into new space independently for every subject using 
+    trained model.
+    Inputs:
+        model - trained conv_autoenc model 
+        dataloader - dataloader for eeg_dataset_test class instance.
+        layer - str, encoder or proj_head. Outputs of which layer to treat as
+                projected EEG. Default = "proj_head".
+    Ouputs:
+        projected_eeg - 2d numpy array of shape (ims, features) 
+                        of eeg projected into new (shared) space.
+    '''
+    model.eval()
+    projected_eeg = []
+    for data in dataloader:
+        if torch.cuda.is_available():
+            data=data.cuda()    
+        feature, out = model(data)
+        projected_eeg.append(feature.cpu().detach().numpy())
+    projected_eeg = np.concatenate(projected_eeg, axis=0)
+    model.train()
+    return projected_eeg
 
 if __name__=='__main__':
     import argparse
@@ -352,6 +375,7 @@ if __name__=='__main__':
         accuracies["epoch"+str(epoch)]=[]
 
         for batch in train_dataloader:
+            import ipdb; ipdb.set_trace()
             if args.gpu:
                 batch = batch.to(device)
             enc, dec = model.forward(batch)#[:,0,:,:].unsqueeze(1))

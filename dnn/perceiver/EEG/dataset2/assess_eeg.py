@@ -212,7 +212,8 @@ def assess_eeg(Y_train, Y_test, top=1, dnn_dir=None):
     '''
 
     # Load DNN data
-    dnn_dir='/scratch/akitaitsev/encoding_Ale/dataset2/dnn_activations/'
+    if dnn_dir==None:
+        dnn_dir='/scratch/akitaitsev/encoding_Ale/dataset2/dnn_activations/'
     X_tr, X_test = load_dnn_data('CORnet-S', 1000, dnn_dir) 
     
     # Regression

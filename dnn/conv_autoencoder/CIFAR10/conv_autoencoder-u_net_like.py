@@ -5,31 +5,8 @@
 
 import torch 
 import torch.nn.functional as F
-from assess_eeg import assess_eeg
-from assess_eeg import project_eeg_conv_autoenc
-from torch.utils.tensorboard import SummaryWriter
 from torch.nn.functional import interpolate
 from torchvision import datasets, transforms
-
-
-
-class dataset(torch.utils.data.Dataset):
-    '''EEG dataset for training convolutional autoencoder.
-    '''
-    def __init__(self, data):
-        '''
-        Inputs:
-            data - numpy array or tensor of shape (subj, ims, chans, times)
-        '''
-        self.data = torch.tensor(data).permute(1,0,2,3) # to shape(ims, subjs, chans, times)
-        if torch.cuda.is_available():
-            self.data = self.data.cuda()
-
-    def __len__(self):
-        return self.data.shape[0]
-
-    def __getitem__(self, idx):
-        return self.data[idx].type(torch.float32)
 
 
 class conv_autoencoder(torch.nn.Module):
@@ -244,12 +221,14 @@ class conv_autoencoder(torch.nn.Module):
         if not (d5.shape[-2], d5.shape[-1]) == ch_time:
             d5 = interpolate(d5, ch_time)
             
-        import ipdb; ipdb.set_trace()
-        
-        # e5.shape = (batch_size, ch, time)
-        # d5.shape = (batch_size, subj, ch, time)
+        # e5.shape = (batch_size, chs, pix, pix)
+        # d5.shape = (batch_size, chs, pix, pix)
         e5 = torch.reshape(e5, (e5.shape[0], -1)) #(batch_size, features) 
         return  e5, d5
+
+def imshow(im):
+    im = im/2 +0.5
+    plt.imshow(np.transpose(im, (1,2,0)))
 
 
 if __name__=='__main__':
@@ -312,7 +291,6 @@ if __name__=='__main__':
 
   
     # define the model
-    import ipdb; ipdb.set_trace()
     ch_time = (32, 32)
     model = conv_autoencoder(n_subj = 3, ch_time = ch_time,\
         ch_enc1=args.enc_chs[0], ch_enc2 = args.enc_chs[1], ch_enc3 =  args.enc_chs[2],\
@@ -343,12 +321,6 @@ if __name__=='__main__':
 
     # Loss and  accuracy init 
     losses = defaultdict()
-    accuracies = defaultdict()
-    accuracies["encoder"] = defaultdict()
-    accuracies["encoder"]["average"] = []
-    accuracies["encoder"]["subjectwise"] = defaultdict()
-    accuracies["encoder"]["subjectwise"]["mean"] = []
-    accuracies["encoder"]["subjectwise"]["SD"] = []
     cntr_epta=0 
 
     # Loop through EEG dataset in batches
@@ -357,7 +329,6 @@ if __name__=='__main__':
         cntr=0
         tic = time.time()
         losses["epoch"+str(epoch)]=[]
-        accuracies["epoch"+str(epoch)]=[]
 
         for images, labels in train_dataloader:
             if args.gpu:
@@ -380,19 +351,19 @@ if __name__=='__main__':
             cntr+=1
 
         # save test accuracy every epta epcohs
-        if cntr_epta % args.epta == 0 and cntr_epta !=0:
+        if cntr_epta % args.epta == 0:
             
             dataiter = iter(test_dataloader)
             images, labels = dataiter.next()
             enc, dec = model(images)
-            dec = dec.detach().numpy()
+            dec = dec.cpu().detach().numpy()
             
             #Original Images
             print("Original Images")
             fig, axes = plt.subplots(nrows=1, ncols=5, sharex=True, sharey=True, figsize=(12,4))
             for idx in np.arange(5):
                 ax = fig.add_subplot(1, 5, idx+1, xticks=[], yticks=[])
-                plt.imshow(images[idx])
+                imshow(images[idx])
                 ax.set_title(classes[labels[idx]])
             plt.show()
             
@@ -401,7 +372,7 @@ if __name__=='__main__':
             fig, axes = plt.subplots(nrows=1, ncols=5, sharex=True, sharey=True, figsize=(12,4))
             for idx in np.arange(5):
                 ax = fig.add_subplot(1, 5, idx+1, xticks=[], yticks=[])
-                plt.imshow(dec[idx])
+                imshow(dec[idx])
                 ax.set_title(classes[labels[idx]])
             plt.show() 
             inp = input('Next?')

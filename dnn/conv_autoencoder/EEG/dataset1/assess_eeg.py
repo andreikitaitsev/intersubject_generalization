@@ -6,6 +6,7 @@ from pathlib import Path
 import joblib
 import copy
 import sys
+import torch
 from sklearn.model_selection import KFold
 from sklearn.linear_model import LinearRegression   
 from sklearn.preprocessing import StandardScaler
@@ -30,7 +31,7 @@ def load_dnn_data(net, n_pca, project_dir):
 
     # DNN activations directory ###
 	data_dir = "pca_activations/" + net + "/layers-combined/" \
-			+ "normal_images/pca_" + format(n_pca, "05")
+			+ "pca_" + format(n_pca, "05")
 	file_name = "pca_fmaps.npy"
 	# Loading the DNN activations ###
 	activations = np.load(os.path.join(project_dir, data_dir, file_name), \
@@ -212,60 +213,14 @@ def hist2top(hist, top, return_sd=False):
         return top_hist
 
 
-def project_eeg(model, test_dataloader, layer="proj_head", split_size=None):
-    '''
-    Project EEG into new space independently for every subject using 
-    trained model.
-    Inputs:
-        model - trained model (e.g. resnet50) Note, input dimensions required 
-                by perceiver are different!
-        test_dataloader - test dataloader for eeg_dataset_test class instance.
-        layer - str, encoder or proj_head. Outputs of which layer to treat as
-                projected EEG. Default = "proj_head".
-        split_size - int, number of images per one call of the model. Helps
-                     to reduce memory consumption and avoid cuda out of memory
-                     error while projecting train set. If None, no separation 
-                     into snippets is done. Default==None.
-    Ouputs:
-        projected_eeg - 3d numpy array of shape (subj, ims, features) 
-                        of eeg projected into new (shared) space.
-    '''
-    model.eval()
-    projected_eeg = []
-    if split_size == None:
-        for subj_data in test_dataloader:
-            if torch.cuda.is_available():
-                subj_data=subj_data.cuda()    
-            feature, out = model(subj_data)
-            if layer == "encoder":
-                projected_eeg.append(feature.cpu().detach().numpy())
-            elif layer == "proj_head":
-                projected_eeg.append(out.cpu().detach().numpy())
-        projected_eeg = np.stack(projected_eeg, axis=0)
-    elif not split_size == None:
-        for subj_data in test_dataloader:
-            proj_eeg_tmp = []
-            subj_data_list = torch.split(subj_data,  split_size, dim=0)
-            for snippet in subj_data_list:
-                if torch.cuda.is_available():
-                    snippet=snippet.cuda()
-                feature, out = model(snippet)
-                if layer == "encoder":
-                    proj_eeg_tmp.append(feature.cpu().detach().numpy())
-                elif layer == "proj_head":
-                    proj_eeg_tmp.append(out.cpu().detach().numpy())
-            proj_eeg_tmp = np.concatenate(proj_eeg_tmp, axis=0)
-            projected_eeg.append(proj_eeg_tmp)
-        projected_eeg = np.stack(projected_eeg, axis=0)
-    model.train()
-    return projected_eeg
-
 
 # pipeline assess EEG projection quality
 
-def assess_eeg(Y_train, Y_test, top=1, layer="decoder"):
+def assess_eeg(X_tr, X_test, Y_train, Y_test, top=1, layer="decoder"):
     '''
     Inputs:
+        X_train - 2d array of train DNN activations for regression
+        X_test - 2d array of test DNN activations for regression
         Y_train - 3d numpy array of shape (subj, ims, features) of
                   train set EEG data projected into shared space
         Y_test - 3d numpy array of shape (subj, ims, features) of
@@ -282,10 +237,6 @@ def assess_eeg(Y_train, Y_test, top=1, layer="decoder"):
             (top1_av, top1_av_sd), (top1_sw, top1_sw_sd) 
     '''
 
-    # Load DNN data
-    dnn_dir='/scratch/akitaitsev/encoding_Ale/dnn_activations/'
-    X_tr, X_val, X_test = load_dnn_data('CORnet-S', 1000, dnn_dir) 
-    
     # Regression
     if layer == "decoder":
         Y_pred_av, tr_regr_av = linear_regression(X_tr, X_test, Y_train, Y_test,\

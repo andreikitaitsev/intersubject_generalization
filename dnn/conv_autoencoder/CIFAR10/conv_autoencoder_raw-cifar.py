@@ -185,6 +185,7 @@ if __name__=='__main__':
                 images = images.to(device)
             enc, dec = model.forward(images)
            
+            import ipdb; ipdb.set_trace()
             # compute loss - minimize diff between outputs of net and real data?
             loss = loss_fn(dec, images)
             losses["epoch"+str(epoch)].append(loss.cpu().detach().numpy())

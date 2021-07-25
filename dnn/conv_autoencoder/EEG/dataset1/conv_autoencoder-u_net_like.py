@@ -3,10 +3,10 @@
 # Implementation of conv autoencoder isnpired by the architechture of
 # U-net
 
+import numpy as np
 import torch 
 import torch.nn.functional as F
-from assess_eeg import assess_eeg
-from assess_eeg import project_eeg_conv_autoenc
+from assess_eeg import assess_eeg, load_dnn_data
 from torch.utils.tensorboard import SummaryWriter
 from torch.nn.functional import interpolate
 
@@ -221,7 +221,7 @@ class conv_autoencoder(torch.nn.Module):
             e5 = interpolate(e5, self.dims_enc[4])
         
         # decoder
-        d1=self.block1d(e5)
+        d1=self.block1d(e5.float())
         if not self.dims_dec[0] == None:
             d1 = interpolate(d1, self.dims_dec[0])
         d2=self.block2d(d1)
@@ -240,6 +240,32 @@ class conv_autoencoder(torch.nn.Module):
         # d5.shape = (batch_size, subj, ch, time)
         e5 = torch.reshape(e5, (e5.shape[0], -1)) #(batch_size, features) 
         return  e5, d5
+
+
+def project_eeg_conv_autoenc(model, dataloader):
+    '''
+    Project EEG into new space independently for every subject using 
+    trained model.
+    Inputs:
+        model - trained conv_autoenc model 
+        dataloader - dataloader for eeg_dataset_test class instance.
+        layer - str, encoder or proj_head. Outputs of which layer to treat as
+                projected EEG. Default = "proj_head".
+    Ouputs:
+        projected_eeg - 2d numpy array of shape (ims, features) 
+                        of eeg projected into new (shared) space.
+    '''
+    model.eval()
+    projected_eeg = []
+    for data in dataloader:
+        if torch.cuda.is_available():
+            data=data.cuda()    
+        feature, out = model(data)
+        projected_eeg.append(feature.cpu().detach().numpy())
+    projected_eeg = np.concatenate(projected_eeg, axis=0)
+    model.train()
+    return projected_eeg
+
 
 
 if __name__=='__main__':
@@ -270,10 +296,18 @@ if __name__=='__main__':
     'set accuracy every epochs_per_test_accuracy  epochs. Default == 1')
     parser.add_argument('-enc_chs', nargs=5, type=int, default = [16, 32, 64, 128, 256], help=\
     'output channels for encoder blocks 1-5. Default = [16, 32, 64, 128, 256].')
-    parser.add_argument('-enc_out', type=int, default= 512, help='encoder final layer '
+    parser.add_argument('-enc_out', type=int, default= 256, help='encoder final layer '
     'output channels. Default=512.')
     parser.add_argument('-dec_chs', nargs=4, type=int, default=[128, 64, 32, 16], help=\
     'output channels for decoder blocks 1-4. Default = [128, 64, 32, 16].')
+    #parser.add_argument('-dims_enc', nargs=5, type=int, default=[None, None, None, None,None], help=\
+    #'Output dimensions of encoder layers. Default = Nones, no interpolation.')
+    #parser.add_argument('-dims_dec', nargs=4, type=int, default=[None, None, None, None], help=\
+    #'Output dimensions of decoder layers. Default = Nones, no interpolation.')
+    parser.add_argument('-paddings_enc', nargs=5, type=int, default=[1,1,1,1,1], help=\
+    'Size of paddings for encoder layers. Default=[1,1,1,1,1].')
+    parser.add_argument('-paddings_dec', nargs=5, type=int, default=[2,2,2,2,2], help=\
+    'Size of paddings for decoder layers. Default=[2,2,2,2,2].')
     parser.add_argument('-p_enc', type=float, default=0., help='Dropout value for encoder blocks 1-4. '
     'Default=0.')
     args = parser.parse_args()
@@ -296,18 +330,31 @@ if __name__=='__main__':
     test_dataloader = torch.utils.data.DataLoader(dataset_test, batch_size=args.batch_size,\
                                                     shuffle=False, num_workers=args.n_workers,\
                                                     drop_last=False)
+    # no shuffling
+    train_dataloader_for_assessment = torch.utils.data.DataLoader(dataset_train, batch_size=args.batch_size,\
+                                                    shuffle=False, num_workers=args.n_workers,\
+                                                    drop_last=False)
+
+    # Load DNN image activations for regression
+    dnn_dir='/scratch/akitaitsev/encoding_Ale/dataset1/dnn_activations/'
+    X_tr, X_val, X_test = load_dnn_data('CORnet-S', 1000, dnn_dir)
 
     # logging
     writer = SummaryWriter(out_dir.joinpath('runs'))
 
     # define the model
+    #dims_enc=([15,20],[12,17],[7,12], [5,8],[3,5])
+    #dims_dec=(None, None, None, None, None)
     ch_time = (data_test.shape[-2], data_test.shape[-1])
+
     model = conv_autoencoder(n_subj = data_test.shape[0], ch_time = ch_time,\
         ch_enc1=args.enc_chs[0], ch_enc2 = args.enc_chs[1], ch_enc3 =  args.enc_chs[2],\
         ch_enc4 =  args.enc_chs[3], ch_enc5 = args.enc_chs[4], \
         enc_out = args.enc_out,\
+        #dims_enc = dims_enc,\
         ch_dec1 = args.dec_chs[0], ch_dec2 = args.dec_chs[1],\
         ch_dec3 = args.dec_chs[2], ch_dec4 = args.dec_chs[3],\
+        #dims_dec = dims_dec,\
         p_enc=args.p_enc)
         
     if args.gpu and args.n_workers >=1:
@@ -378,9 +425,9 @@ if __name__=='__main__':
             # Project train and test set EEG into new space
 
             # treat encoder output as EEG
-            eeg_train_projected_ENC = project_eeg_conv_autoenc(model, train_dataloader)
+            eeg_train_projected_ENC = project_eeg_conv_autoenc(model, train_dataloader_for_assessment)
             eeg_test_projected_ENC = project_eeg_conv_autoenc(model, test_dataloader)
-            av_ENC, sw_ENC = assess_eeg(eeg_train_projected_ENC, eeg_test_projected_ENC, layer="encoder")
+            av_ENC, sw_ENC = assess_eeg(X_tr, X_test, eeg_train_projected_ENC, eeg_test_projected_ENC, layer="encoder")
 
             accuracies["encoder"]["average"].append(av_ENC)
 

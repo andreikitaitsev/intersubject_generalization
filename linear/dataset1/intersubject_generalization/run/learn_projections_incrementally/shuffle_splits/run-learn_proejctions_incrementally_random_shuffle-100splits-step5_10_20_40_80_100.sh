@@ -19,7 +19,7 @@ method="multiviewica"
 prepr="pca"
 n_comps=200
 inp_dir="/scratch/akitaitsev/intersubject_generalizeation/linear/featurematrices/50hz/time_window13-40/"
-out_dir_base="/scratch/akitaitsev/intersubject_generalizeation/linear/intersubject_generalization/learn_projections_incrementally/shuffle_splits/100splits/100shuffles/"$method"/"$prepr"/"$n_comps"/"
+out_dir_base="/scratch/akitaitsev/intersubject_generalizeation/linear/intersubject_generalization/dataset1/learn_projections_incrementally/shuffle_splits/100splits/100shuffles/"$method"/"$prepr"/"$n_comps"/"
 
 declare -a seeds
 declare -a shuffles

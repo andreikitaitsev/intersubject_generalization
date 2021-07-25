@@ -8,7 +8,7 @@
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 
-# N JOBS = 4
+# N JOBS = 6
 
 batch_size=16
 n_epochs=400
@@ -17,11 +17,11 @@ epta=10
 out_dir='/scratch/akitaitsev/intersubject_generalization/dnn/conv_autoencoder/conv_autoencoder_raw/EEG/dataset1/50hz/ch-grid/'
 lr=0.01
 
-enc_ch1=(8 16 32 64)
-enc_ch2=(16 32 64 128)
-enc_ch3=(32 64 128 256)
-dec_ch1=(32 64 128 256)
-dec_ch2=(16 32 64 128)
+enc_ch1=(8 16 32 64 128 256)
+enc_ch2=(16 32 64 128 256 512)
+enc_ch3=(32 64 128 256 512 1024)
+dec_ch1=(32 64 128 256 512 1024)
+dec_ch2=(16 32 64 128 256 512)
 
 declare -a out_dirs
 

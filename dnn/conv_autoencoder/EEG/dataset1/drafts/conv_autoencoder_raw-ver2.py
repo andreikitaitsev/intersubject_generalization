@@ -7,10 +7,7 @@ from torch.utils.tensorboard import SummaryWriter
 from assess_eeg import assess_eeg, load_dnn_data
 import matplotlib.pyplot as plt
 
-# In this configuration of encoder we do not feed matrices of shape (subj, ims, features), 
-# but raw eeg of shape (subj, ims, ch, time)
-# This is not directly comparable to previous analyis where DNN got input of shape (subj, ims, features)
-
+# 5 encoder convolution blocks and 1 decoder deconvolution block
 
 class dataset(torch.utils.data.Dataset):
     '''EEG dataset for training convolutional autoencoder.
@@ -70,7 +67,7 @@ class conv_autoencoder_raw(torch.nn.Module):
             dec (ims, subj, eeg_ch, eeg_time)
     '''
     def __init__(self, n_subj, enc_ch1=16, enc_ch2=32, enc_ch3=64,\
-                dec_ch1 = 64, dec_ch2 = 32, \
+                enc_ch4 = 128, enc_ch5 = 256, \
                 p=0):
          
         conv1 = torch.nn.Sequential(torch.nn.Conv2d(n_subj, enc_ch1, 3), \
@@ -83,14 +80,14 @@ class conv_autoencoder_raw(torch.nn.Module):
                                 torch.nn.Dropout2d(p=p))
         conv3 = torch.nn.Sequential(torch.nn.Conv2d(enc_ch2, enc_ch3, 3), \
                                 torch.nn.BatchNorm2d(enc_ch3),\
+                                torch.nn.ReLU())
+        conv4 = torch.nn.Sequential(torch.nn.Conv2d(enc_ch3, enc_ch4, 3), \
+                                torch.nn.BatchNorm2d(enc_ch4),\
+                                torch.nn.ReLU())
+        conv5 = torch.nn.Sequential(torch.nn.Conv2d(enc_ch4, enc_ch5, 3), \
+                                torch.nn.BatchNorm2d(enc_ch5),\
                                 torch.nn.Tanh())
-        deconv1 = torch.nn.Sequential(torch.nn.ConvTranspose2d(enc_ch3, dec_ch1, 3), \
-                                torch.nn.BatchNorm2d(dec_ch1),\
-                                torch.nn.ReLU())
-        deconv2 = torch.nn.Sequential(torch.nn.ConvTranspose2d(dec_ch1, dec_ch2, 3), \
-                                torch.nn.BatchNorm2d(dec_ch2),\
-                                torch.nn.ReLU())
-        deconv3 = torch.nn.Sequential(torch.nn.ConvTranspose2d(dec_ch2, n_subj, 3), \
+        deconv1 = torch.nn.Sequential(torch.nn.ConvTranspose2d(enc_ch5, n_subj, 3), \
                                 torch.nn.BatchNorm2d(n_subj),\
                                 torch.nn.Tanh())
         super(conv_autoencoder_raw, self).__init__()
@@ -99,13 +96,12 @@ class conv_autoencoder_raw(torch.nn.Module):
         self.conv1 = conv1
         self.conv2 = conv2
         self.conv3 = conv3
-
+        self.conv4 = conv4
+        self.conv5 = conv5
         self.deconv1 = deconv1
-        self.deconv2 = deconv2
-        self.deconv3 = deconv3
         
-        self.encoder = torch.nn.Sequential(conv1, conv2, conv3)
-        self.decoder = torch.nn.Sequential(deconv1, deconv2, deconv3)
+        self.encoder = torch.nn.Sequential(conv1, conv2, conv3, conv4, conv5)
+        self.decoder = torch.nn.Sequential(deconv1)
 
     def forward(self, data):
         orig_dims = data.shape[-2:]
@@ -177,37 +173,6 @@ def plot(batch, enc, dec, im=0, ignore_enc=False):
         cbar1 = fig.colorbar(im1)
     return fig
 
-def get_incremental_data(data, nsplits, step, seed, dtype='EEG'):
-    '''Shuffle the data along image diension and return fraction of it.
-    Inputs:
-        data - np array, either training feature matrix of shape (subj, ims, features)
-            or DNN features for regression of shape (images, features)
-        nsplits -  int, number of splits of data
-        step - number of splits to concatenate in the output.
-        seed - random seed for data permutation along image dimension
-        dtype - str, EEG or DNN - data type. If EEG split along 1st axis (images)
-            if DNN, split along 0th axis (images)
-    Outputs:
-        out - np array of shape either (subj, n_ims, features) in case of EEG feature matrices
-            or (n_ims, features) in case of DNN features.
-        n_ims  is the desiced ration of training images.'''
-
-    concat = lambda x, ind, ax: np.concatenate(x[0:ind], axis = ax)
-    if dtype =='EEG':
-        n_ims = data.shape[1]
-        inds=np.random.RandomState(seed=seed).permutation(np.linspace(0, n_ims, n_ims, \
-            endpoint=False, dtype=int))
-        data_sh = data[:,inds,:,:]
-        splits = np.array_split(data_sh, nsplits, axis=1)
-        out = concat(splits, step, 1)
-    elif dtype == 'DNN':
-        n_ims = data.shape[0]
-        inds=np.random.RandomState(seed=seed).permutation(np.linspace(0, n_ims, n_ims, \
-            endpoint=False, dtype=int))
-        data_sh = data[inds,:]
-        splits = np.array_split(data_sh, nsplits, axis=0)
-        out = concat(splits, step, 0)
-    return out
 
 if __name__=='__main__':
     import argparse
@@ -232,8 +197,7 @@ if __name__=='__main__':
     'bacth_per_loss mini-batches. Default=20.')
     parser.add_argument('-epta','--epochs_per_test_accuracy',type=int, default=1, help='Save test '
     'set accuracy every epochs_per_test_accuracy  epochs. Default == 1')
-    parser.add_argument('-enc_chs',type=int, nargs=3, default= [16, 32, 64], help='Channels of encoder layer of DNN.')
-    parser.add_argument('-dec_chs',type=int, nargs=2, default= [64, 32], help='Channels of decoder layer of DNN.')
+    parser.add_argument('-enc_chs',type=int, nargs=5, default= [16, 32, 64, 128, 256], help='Channels of encoder layer of DNN.')
     parser.add_argument('-p', type=int, default = 0, help = 'Dropout probability for encoder layer.')
     parser.add_argument('-normalize', type=int, default = 1, help = 'Bool (1/0), whether to normalize the data.'
     'Default=True.')
@@ -245,31 +209,18 @@ if __name__=='__main__':
     '/scratch/akitaitsev/intersubject_generalization/linear/dataset1/dataset_matrices/50hz/time_window13-40/',\
     help='Directory with EEG dataset. Default=/scratch/akitaitsev/intersubject_generalization/linear/'
     'dataset_matrices/50hz/time_window13-40/')
-    parser.add_argument('-nsplits', type=int)
-    parser.add_argument('-step', type=int)
-    parser.add_argument('-seed', type=int)
     args = parser.parse_args()
     
     bpl = args.batches_per_loss
     epta = args.epochs_per_test_accuracy
     out_dir = Path(args.out_dir)
 
-    # load the EEG
+    # create datasets
     datasets_dir = Path(args.eeg_dir)
     data_train = joblib.load(datasets_dir.joinpath('dataset_train.pkl'))
     data_test = joblib.load(datasets_dir.joinpath('dataset_test.pkl'))
-    # split the data incrementally
-    Y_tr_incr = get_incremental_data(data_train, args.nsplits, args.step, args.seed, \
-                                                                                dtype='EEG')
-    # Load DNN image activations for regression
-    dnn_dir='/scratch/akitaitsev/encoding_Ale/dataset1/dnn_activations/'
-    X_tr, X_val, X_test = load_dnn_data('CORnet-S', 1000, dnn_dir)
-    X_tr_incr = get_incremental_data(X_tr, args.nsplits, args.step, args.seed, \
-                                                                                dtype='DNN')
-    # create datasets
+
     dataset_train = dataset(data_train, normalize=bool(args.normalize), scale=bool(args.scale),\
-        tanh=False)
-    dataset_train_for_assessment = dataset(Y_tr_incr, normalize=bool(args.normalize), scale=bool(args.scale),\
         tanh=False)
     dataset_test = dataset(data_test, normalize=bool(args.normalize), scale=bool(args.scale),\
         tanh=False)
@@ -283,16 +234,20 @@ if __name__=='__main__':
                                                     shuffle=False, num_workers=args.n_workers,\
                                                     drop_last=False)
 
-    train_dataloader_for_assessment = torch.utils.data.DataLoader(dataset_train_for_assessment, batch_size=args.batch_size,\
+    train_dataloader_for_assessment = torch.utils.data.DataLoader(dataset_train, batch_size=args.batch_size,\
                                                     shuffle=False, num_workers=args.n_workers,\
                                                     drop_last=False)
+
+    # Load DNN image activations for regression
+    dnn_dir='/scratch/akitaitsev/encoding_Ale/dataset1/dnn_activations/'
+    X_tr, X_val, X_test = load_dnn_data('CORnet-S', 1000, dnn_dir)
 
     # logging
     writer = SummaryWriter(out_dir.joinpath('runs'))
 
     # define the model
     model = conv_autoencoder_raw(n_subj = dataset_train.__len_subj__(), enc_ch1 = args.enc_chs[0], enc_ch2 = args.enc_chs[1],\
-        enc_ch3 = args.enc_chs[2], dec_ch1 = args.dec_chs[0], dec_ch2 = args.dec_chs[1], p=args.p)
+        enc_ch3 = args.enc_chs[2], enc_ch4 = args.enc_chs[3], enc_ch5 = args.enc_chs[4], p=args.p)
 
     if args.gpu and args.n_workers >=1:
         warnings.warn('Using GPU and n_workers>=1 can cause some difficulties.')
@@ -376,8 +331,8 @@ if __name__=='__main__':
             eeg_train_proj_ENC, eeg_train_proj_DEC = project_eeg_raw(model, train_dataloader_for_assessment) 
             eeg_test_proj_ENC, eeg_test_proj_DEC = project_eeg_raw(model, test_dataloader)
             
-            av_ENC = assess_eeg(X_tr_incr, X_test, eeg_train_proj_ENC, eeg_test_proj_ENC, layer="encoder")
-            av_DEC, sw_DEC = assess_eeg(X_tr_incr, X_test, eeg_train_proj_DEC, eeg_test_proj_DEC)
+            av_ENC = assess_eeg(X_tr, X_test, eeg_train_proj_ENC, eeg_test_proj_ENC, layer="encoder")
+            av_DEC, sw_DEC = assess_eeg(X_tr, X_test, eeg_train_proj_DEC, eeg_test_proj_DEC)
 
             accuracies["encoder"]["average"].append(av_ENC[0])
             accuracies["decoder"]["average"].append(av_DEC[0])

@@ -9,23 +9,23 @@ from create_topplots import *
 
 parser= argparse.ArgumentParser()
 parser.add_argument('-top', type=int, default=1)
-parser.add_argument('-nsplits', type=str, default='100', help='N splits of training data.'
-'Default=100')
+parser.add_argument('-nsplits', type=str, default='10', help='N splits of training data.'
+'Default=10')
 parser.add_argument('-methods', type=str, nargs='+', default=None, help='Default = '
 'multiviewica')
 parser.add_argument('-preprs',type=str, nargs='+', default=["pca"])
 parser.add_argument('-n_comps', type=str, nargs='+', default=["200"])
-parser.add_argument('-nshuffles',type=int, default=100)
-parser.add_argument('-steps', type=str, nargs='+', default=['5','10','20','40',\
-'80','100'], help='Number of steps in incremental training data.')
+parser.add_argument('-nshuffles',type=int, default=10)
+parser.add_argument('-steps', type=str, nargs='+', default=['0','1','2','3',\
+'4','5','6','7','8','9'], help='Number of steps in incremental training data.')
 parser.add_argument('-save_fig', action='store_true', default=False, help='Flag, save figs')
 args=parser.parse_args()
 
 # change if needed
 if args.methods == None:
     args.methods= ["multiviewica"]
-inp_base=Path('/scratch/akitaitsev/intersubject_generalizeation/linear/generic_decoding/learn_projections_incrementally/',\
-    'shuffle_splits/', (args.nsplits+'splits'), (str(args.nshuffles)+'shuffles'))
+inp_base=Path('/scratch/akitaitsev/intersubject_generalization/linear/dataset1/generic_decoding/learn_projections_incrementally/',\
+    'shuffle_splits/', (args.nsplits+'splits'))
 title='Top '+str(args.top)+' generic decoding results for mvica with pca '+'_'.join(args.n_comps)
 
 av_fname='generic_decoding_results_average.pkl'
@@ -39,8 +39,9 @@ legend_sw=[]
 linestyles = ['solid','dotted']
 colors=[ 'r', 'g', 'b']
 xposerr=np.linspace(1, len(args.steps), len(args.steps), endpoint=True, dtype=int)
-labels=[5, 10, 20, 40, 80, 100]
-labels = [ '{:d}'.format(el) for el in labels]
+labels=np.linspace(1, len(args.steps), len(args.steps), endpoint=True, dtype=int)/\
+    (int(args.nsplits)/100)
+labels = [ '{:.0f}'.format(el) for el in labels]
 xposerr_list=[0.1,0,-0.1]
 
 fig, (ax1, ax2) = plt.subplots(1,2, figsize=(16,9))

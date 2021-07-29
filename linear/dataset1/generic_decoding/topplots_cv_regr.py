@@ -3,82 +3,7 @@ import numpy as np
 import joblib
 from pathlib import Path
 import matplotlib.pyplot as plt
-
-def res2hist(fl):
-    '''Convert generic decoding results into histograms)
-    In the current project data structures, the output files are
-    named the same and the paths differ.
-    Inputs:
-        fl - 2d or 1d np array of generic_decoding_result_average/subjectwise
-    Outputs:
-        hist - list of arrays of histogram or list of lists of
-               arrays of histograms for different subjects
-    
-    '''
-    hist=[]
-    if np.ndim(fl) == 2:
-        for s in range(fl.shape[0]):
-            hist_tmp=np.histogram(fl[s], np.linspace(1,\
-                max(set(fl[s]))+1, max(set(fl[s])), endpoint=False, dtype=int))
-            hist.append( (hist_tmp[0]/sum(hist_tmp[0]))*100 )
-    elif np.ndim(fl) ==1:
-        hist_tmp = np.histogram(fl, np.linspace(1,max(set(fl))+1,\
-            max(set(fl)), endpoint=False, dtype=int))
-        hist.append((hist_tmp[0]/sum(hist_tmp[0]))*100)
-    return hist
-
-def hist2top(hist, top, return_sd=False):
-    '''Returns the percent of images in top N best correlated images.
-    Inputs:
-        hist - list of arrays (possibly for different subjects),
-               output of res2hist function
-        top - int, position of the image (starting from 1!)
-        return_sd - bool, whether to return sd over subjects. Default=False
-    Returns:
-        top_hist - np.float64 
-        sd - standard deviation over subjects if hist has len >2
-    '''
-    sd = None
-    top = top-1 # python indexing
-    if len(hist) >1:
-        top_hist = []
-        for s in range(len(hist)):
-            if len(np.cumsum(hist[s])) >= top+1: 
-                top_hist.append(np.cumsum(hist[s])[top])
-            elif len(np.cumsum(hist[s])) < top+1:
-                top_hist.append(np.cumsum(hist[s])[-1])
-        sd = np.std(np.array(top_hist))
-        top_hist = np.mean(top_hist) 
-    elif len(hist) ==1:
-        cumsum = np.cumsum(hist[0], axis=0)
-        if len(cumsum) >= top+1:
-            top_hist = cumsum[top]
-        elif len(cumsum) < top+1:
-            top_hist = cumsum[-1]
-    if return_sd:
-        return top_hist, sd
-    else:
-        return top_hist
-
-def res2top(filpaths, top):
-    # load files
-    fls=[]
-    for fl in filepaths:
-        fls.append(joblib.load(Path(fl)))
-    
-    # gets histograms for each file for each time window
-    hists = []
-    for fl in fls:
-        hists.append(res2hist(np.array(fl)))
-
-    # get top histograms for each file for each subject
-    tops = []
-    sds=[]
-    for hist in hists:
-        top_it, sd_it = hist2top(hist, top, return_sd=True) 
-        tops.append(top_it)
-        sds.append(sd_it)
-    return tops, sds
+from analysis_utils import res2top
 
 def topplot(tops, errors, labels=None, xpos=None, title=None):
     
@@ -111,7 +36,7 @@ if __name__ =='__main__':
     if args.methods == None:
         args.methods= ["multiviewica","groupica", "permica"]
     n_comps=['50', '200', '400']
-    inp_base=Path('/scratch/akitaitsev/intersubject_generalizeation/linear/generic_decoding/cv_regr/')
+    inp_base=Path('/scratch/akitaitsev/intersubject_generalizeation/linear/dataset1/generic_decoding/cv_regr/')
     title='Top '+str(args.top)+' generic decoding accuracy'
     
     
@@ -121,14 +46,14 @@ if __name__ =='__main__':
         for prepr in args.preprs:
             for n_comp in args.n_comps:
                 filepaths.append(inp_base.joinpath(meth, prepr, n_comp, '50hz','time_window13-40', \
-                    'generic_decoding_results_.pkl'))
+                    'generic_decoding_results.pkl'))
                 labels.append((meth+'_'+prepr+'_'+n_comp))
     tops, sds = res2top(filepaths, args.top)
     fig, ax = topplot(tops, sds, labels=labels, title=title)
     if not args.save_fig:
         plt.show()
     if args.save_fig:
-        out_path=Path('/scratch/akitaitsev/intersubject_generalizeation/linear/generic_decoding/plots/cv_regr/50hz/')
+        out_path=Path('/scratch/akitaitsev/intersubject_generalizeation/results/linear/cv_regr/')
         if not out_path.is_dir():
             out_path.mkdir(parents=True)
         fig.savefig(out_path.joinpath(('top'+str(args.top)+'_'+'_'.join(args.preprs)+'_'+\

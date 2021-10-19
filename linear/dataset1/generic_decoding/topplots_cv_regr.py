@@ -3,7 +3,7 @@ import numpy as np
 import joblib
 from pathlib import Path
 import matplotlib.pyplot as plt
-from analysis_utils import res2top
+from analysis_utils_linear import res2top
 
 def topplot(tops, errors, labels=None, xpos=None, title=None):
     

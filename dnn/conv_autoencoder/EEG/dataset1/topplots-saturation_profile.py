@@ -7,7 +7,7 @@ import argparse
 import joblib
 import pandas as pd
 from pathlib import Path
-from analysis_utils_conv_autoencoder import create_saturation_profile_data, plot_saturation_profile
+from analysis_utils_dnn import create_saturation_profile_data, plot_saturation_profile
 
 parser= argparse.ArgumentParser()
 parser.add_argument('-save_fig', action='store_true', default=False, help='Flag, save fig.')
@@ -32,7 +32,7 @@ if not out_path.is_dir():
 
 # get data
 enc_av, enc_sw, dec_av, dec_sw = create_saturation_profile_data(inp_base, \
-    args.nshuffles, args.steps)
+    args.nshuffles, args.steps, net='conv_autoencoder')
 
 # plot 
 fig1, ax1 = plot_saturation_profile(enc_av, enc_sw, dec_av, dec_sw, layer='encoder',\

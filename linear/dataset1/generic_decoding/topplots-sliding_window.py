@@ -3,7 +3,7 @@ import joblib
 decoding accuracy on multiviewica with PCA '''
 #! /bin/bash
 from pathlib import Path
-from analysis_utils import cget_data_sliding_window, reate_time_axis, topplots_sliding_window
+from analysis_utils_linear import cget_data_sliding_window, reate_time_axis, topplots_sliding_window
 import pandas as pd
 import argparse
 

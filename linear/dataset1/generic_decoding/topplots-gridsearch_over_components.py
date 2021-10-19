@@ -1,5 +1,5 @@
 #! /bin/env/python
-from analysis_utils import get_av_sw_data, topplot_av_sw
+from analysis_utils_linear import get_av_sw_data, topplot_av_sw
 from pathlib import Path
 import argparse
 import numpy as np

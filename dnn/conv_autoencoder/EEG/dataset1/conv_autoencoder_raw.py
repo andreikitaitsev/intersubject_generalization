@@ -286,7 +286,6 @@ if __name__=='__main__':
     cntr_epta=0 
 
     figs = []
-
     # Loop through EEG dataset in batches
     for epoch in range(args.n_epochs):
         model.train()

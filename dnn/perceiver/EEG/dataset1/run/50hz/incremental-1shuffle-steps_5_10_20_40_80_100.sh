@@ -42,21 +42,24 @@ declare -a seeds
 declare -a steps
 
 ind=0
+seed=0
 for step in ${step_list[@]} #start step stop
 do
-    seeds[$ind]=$ind
+    seeds[$ind]=$seed
     steps[$ind]=$step
-    out_dirs[$ind]=$out_dir"/seed"$ind"/step"$step"/"
+    out_dirs[$ind]=$out_dir"/step"$step"/seed"$seed"/"
     ((ind=ind+1))
+    ((seed=seed+1))
 done
 
-seeds=${seeds[$SLIRM_ARRAY_TASK_ID]}
+
+seeds=${seeds[$SLURM_ARRAY_TASK_ID]}
 steps=${steps[$SLURM_ARRAY_TASK_ID]}
 out_dirs=${out_dirs[$SLURM_ARRAY_TASK_ID]}
 
 
-echo seeds: $seeds
-echo steps: $steps
+echo step: $steps
+echo seed: $seeds
 echo out_dir: $out_dirs
 
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/akitaitsev/anaconda3/lib/

@@ -248,7 +248,6 @@ if __name__ =='__main__':
     real_data = joblib.load(args.real_eeg_filepath)
     pred_data = joblib.load(args.pred_eeg_filepath)
     
-    import ipdb; ipdb.set_trace()
     cor, res, metadata = generic_decoding(real_data, pred_data, args.regr_type, \
         args.sliding_window, args.cv_regr, args.cv_gener, args.incr_train_data,\
         args.learn_pr_incr)

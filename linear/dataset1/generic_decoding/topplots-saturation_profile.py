@@ -5,7 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import argparse
 from pathlib import Path
-from analysis_utils import average_shuffles, plot_saturation_profile
+from analysis_utils_linear import average_shuffles, plot_saturation_profile
 
 
 parser= argparse.ArgumentParser()

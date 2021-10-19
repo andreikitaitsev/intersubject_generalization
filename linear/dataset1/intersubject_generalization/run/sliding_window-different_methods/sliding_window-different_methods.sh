@@ -13,7 +13,7 @@ method_list=("multiviewica" "groupica" "permica" "control")
 wind_len=5
 
 inp_dir="/scratch/akitaitsev/intersubject_generalization/linear/dataset1/dataset_matrices/100hz/time_window26-80/"
-out_base="/scratch/akitaitsev/intersubject_generalization/linear/dataset1/intersubject_generalization/sliding_window-different_emthods/"
+out_base="/scratch/akitaitsev/intersubject_generalization/linear/dataset1/intersubject_generalization/sliding_window-different_methods/"
 
 declare -a out_dirs
 declare -a methods

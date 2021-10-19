@@ -8,11 +8,11 @@
 
 # N_JOBS = 8
 # Run separate linear regression on each sliding window 
-dnn_dir="/scratch/akitaitsev/encoding_Ale/dnn_activations/dataset2/"
-eeg_dir_base="/scratch/akitaitsev/intersubject_generalization/linear/dataset2/intersubject_generalization/sliding_window-different_methods"
+dnn_dir="/scratch/akitaitsev/encoding_Ale/dataset2/dnn_activations/"
+eeg_dir_base="/scratch/akitaitsev/intersubject_generalization/linear/dataset2/intersubject_generalization/sliding_window-different_emthods/"
 out_dir_base="/scratch/akitaitsev/intersubject_generalization/linear/dataset2/regression/sliding_window-different_methods/"
 
-method_list=("multiviewica" "groupica" "permica" "control")
+method_list=("groupica" "multiviewica" "permica" "control")
 declare -a eeg_dirs
 declare -a out_dirs
 declare -a regr_types
@@ -24,12 +24,11 @@ do
     for regr_type in "average" "subjectwise"
     do
         regr_types[$ind]=$regr_type
-        eeg_dirs[$ind]=$eeg_dir_base"/100hz/"
-        out_dirs[$ind]=$out_dir_base"/100hz/"
+        eeg_dirs[$ind]=$eeg_dir_base$method"/100hz/"
+        out_dirs[$ind]=$out_dir_base$method"/100hz/"
         methods[$ind]=$method
         ((ind=ind+1))
     done
-done
 done
 
 eeg_dirs=${eeg_dirs[$SLURM_ARRAY_TASK_ID]}
@@ -44,4 +43,4 @@ echo out_dir: $out_dirs
 echo regr_type: $regr_types
 
 cd /home/akitaitsev/code/intersubject_generalization/linear/dataset2/regression/
-python linear_regression.py -dnn_dir $dnn_dir -eeg_dir $eeg_dirs -out_dir $out_dirs -regr_type $regr_types -sliding_window 
+python linear_regression.py -dnn_dir $dnn_dir -eeg_dir $eeg_dirs -out_dir $out_dirs -regr_type $regr_types -sliding_window -skip_val

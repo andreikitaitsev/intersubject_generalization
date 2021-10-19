@@ -80,7 +80,7 @@ def _linear_regression_sliding_window(X_tr, X_val, X_test, Y_train, Y_val, Y_tes
             Y_train_it = np.transpose(np.array(Y_train_it), (0,2,1))
             Y_val_it = np.transpose(np.array(Y_val_it), (0,2,1))
             Y_test_it = np.transpose(np.array(Y_test_it), (0,2,1))
-            n_subj=Y_train.shape[0]
+            n_subj=Y_train_it.shape[0]
             if regr_type == 'average':
                 Y_train_it = np.mean(Y_train_it, axis=0) 
                 Y_val_it = np.mean(Y_val_it, axis=0) 
@@ -110,11 +110,12 @@ def _linear_regression_sliding_window(X_tr, X_val, X_test, Y_train, Y_val, Y_tes
                 scalers.append(scalers_it)
                 trained_regrs.append(regrs_it)
     elif skip_val:
+        Y_val_pred=None
         for Y_train_it, Y_test_it in zip(Y_train, Y_test):
             # transpose eeg to shape (subj,images, features)
             Y_train_it = np.transpose(np.array(Y_train_it), (0,2,1))
             Y_test_it = np.transpose(np.array(Y_test_it), (0,2,1))
-            n_subj=Y_train.shape[0]
+            n_subj=Y_train_it.shape[0]
             if regr_type == 'average':
                 Y_train_it = np.mean(Y_train_it, axis=0) 
                 Y_test_it = np.mean(Y_test_it, axis=0) 

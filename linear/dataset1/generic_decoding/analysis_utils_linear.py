@@ -261,7 +261,7 @@ def get_data_sliding_window(av_filename, sw_filename, filepaths, top=1):
     
 
 def topplots_sliding_window(av_timecourses_mean, sw_timecourses_mean, sw_timecourses_sd,\
-    labels, top=1, timepoints=None, title=None, fontsize=15, linestyles=None):
+    labels, top=1, timepoints=None, title=None, fontsize=15, linestyles=None, ylim=(0,100)):
     ''' 
     Create top plots, i.e. generic decoding results percent ratio for each sliding window.
     Note, that the maxismal number of methods is 4 (check the funciton to see, why)
@@ -276,6 +276,7 @@ def topplots_sliding_window(av_timecourses_mean, sw_timecourses_mean, sw_timecou
         title - str, figure title
         linestyles - list of str, linestyles for different methods (e.g. so that 
             control is dashed and IGA are solid) Default=None
+        ylim - list or tuple of min and max values on the Y axis. Default=[0,100].
     Outputs:
         fig, ax - figure and axis habdles
     '''
@@ -284,133 +285,29 @@ def topplots_sliding_window(av_timecourses_mean, sw_timecourses_mean, sw_timecou
         timepoints = np.linspace(0, len(av_fls[0]), len(av_fls[0]),endpoint=False,\
             dtype=int)
     colors=['C1','C2', 'C3', 'C4']
-    fig, ax = plt.subplots(1, 2, figsize=(16,9))
+    pane_labels=['average', 'subject-wise']
+    ylabel='Top 1 generic decoding accuracy, %'
+    xlabel='Middle of the sliding time window, ms'
+    fig, axes = plt.subplots(1, 2, figsize=(16,9))
     if not title is None: 
-        fig.suptitle(title) 
+        fig.suptitle(title, fontsize=18) 
     if linestyles is None:
         linestyles = ['solid', 'solid', 'solid', 'solid'] 
+    # average
     for ind in range(len(labels)):
-        # average data
-        ax[0].plot(timepoints, av_timecourses_mean[ind], color=colors[ind], linestyle=linestyles[ind])
-    ax[0].legend(labels)
-    ax[0].set_title('average')
+        axes[0].plot(timepoints, av_timecourses_mean[ind], color=colors[ind], linestyle=linestyles[ind])
+    # subject-wise
     for ind in range(len(labels)):
-        # subject-wise data
-        ax[1].errorbar(timepoints, sw_timecourses_mean[ind], yerr=sw_timecourses_sd[ind], color=colors[ind], \
+        axes[1].errorbar(timepoints, sw_timecourses_mean[ind], yerr=sw_timecourses_sd[ind], color=colors[ind], \
             linestyle=linestyles[ind], capsize=10)
-        ax[1].legend(labels)
-    ax[1].set_title('subject-wise')
-    return fig, ax
-
-
-def topplots_sliding_window_OLD(av_filename, sw_filename, filepaths, labels, top=1,\
-    timepoints=None, title=None, plot='matplotlib', fontsize=15):
-    '''
-    Create top plots, i.e. generic decoding results percent ratio for each sliding window.
-    Inputs:
-        av_filename - str, filename of the avarage regression results
-        sw_filename - str, filename of the subjectwise regression results
-        filepaths - list of str of directories generic decoding results of different
-                    methods/ preprocessing
-        labels - list of str, names of methods and preprocessiors (in the same order
-                 as filepaths!). 
-        top - int
-        timepoints - np.array, times of widnows in ms
-        title - str, figure title
-    Outputs:
-        fig, ax - figure and axis habdles
-
-    '''
-    # load files
-    av_fls=[]
-    sw_fls=[]
-    for fl in filepaths:
-        av_fls.append(joblib.load(Path(fl).joinpath(av_filename)))
-        sw_fls.append(joblib.load(Path(fl).joinpath(sw_filename)))
-    
-    # gets histograms for each file for each time window
-    av_hists_cum = []
-    sw_hists_cum = []
-    for fl in range(len(filepaths)):
-        av_hists=[]
-        sw_hists=[] 
-        # files shall have the same number of windows
-        for wind in range(len(av_fls[0])):
-            av_hists.append(res2hist(np.array(av_fls[fl][wind])))
-            sw_hists.append(res2hist(np.array(sw_fls[fl][wind])))
-        av_hists_cum.append(av_hists)
-        sw_hists_cum.append(sw_hists)
-
-    # get top histograms for each file for each time window
-    av_tops_cum = []
-    sw_tops_cum = []
-    sw_sds_cum = []
-    for fl in range(len(filepaths)):
-        av_tops=[]
-        sw_tops=[]
-        sw_sds=[]
-        for wind in range(len(av_fls[0])):
-            av_top = hist2top(av_hists_cum[fl][wind], top)
-            sw_top, sw_sd = hist2top(sw_hists_cum[fl][wind],top, return_sd=True)
-            av_tops.append(av_top)
-            sw_tops.append(sw_top)
-            sw_sds.append(sw_sd)
-        av_tops_cum.append(av_tops)
-        sw_tops_cum.append(sw_tops)
-        sw_sds_cum.append(sw_sds)
-    
-    # get decoding accuracy time courses
-    av_timecourses=[]
-    sw_timecourses=[]
-    sds = []
-    for fl in range(len(filepaths)):
-        av_timecourses.append(np.array(av_tops_cum[fl]))
-        sw_timecourses.append(np.array(sw_tops_cum[fl]))
-        sds.append(np.array(sw_sds_cum[fl]).squeeze())
-    
-    if not isinstance(timepoints, np.ndarray) and timepoints==None:
-        timepoints = np.linspace(0, len(av_fls[0]), len(av_fls[0]),endpoint=False,\
-            dtype=int)
-    regr_types = ('av', 'sw')
-    methods = labels
-    ## matplotlib
-    if plot=='matplotlib':
-        colors=['C1','C2']
-        fig, ax = plt.subplots(figsize=(16,9))
-        # average data
-        for ind in range(len(methods)):
-            ax.plot(timepoints, av_timecourses[ind], color=colors[ind], linestyle='solid')
-        # subject-wise data
-        for ind in range(len(methods)):
-            ax.errorbar(timepoints, sw_timecourses[ind], yerr=sds[ind], color=colors[ind], \
-                linestyle='dashed', capsize=10)
-
-    ## seaborn
-    elif plot=='seaborn':
-        index = pd.MultiIndex.from_product([regr_types, methods], \
-            names=['regr_type','method']) 
-        ar=np.concatenate((np.array(av_timecourses).T, np.array(sw_timecourses).T), axis=1)
-        df=pd.DataFrame(data=ar, index=timepoints, columns=index).unstack()
-        df=df.reset_index()
-        df.columns=['regr_type','method','timepoint','value']
-        
-        # add errorbars for subjectwise data
-        #sds=np.concatenate((np.full_like(np.concatenate(sds), np.nan), np.concatenate(sds)))
-        #df["sds"]=sds
-        
-        fig, ax = plt.subplots(figsize=(16,9))
-        ax=sea.lineplot(data=df, x='timepoint',y='value', style='regr_type', hue='method')
-        colors=['b','r'] 
-        for num, meth in enumerate(methods):
-            ax.errorbar(timepoints, np.array(df.loc[ (df["method"]==meth) & \
-                (df["regr_type"]=="sw")]["value"]), sds[num], linestyle='None', color=colors[num], capsize=5)
-
-    ax.set_ylim([0,100])
-    ax.set_xlabel('Middle of the sliding time window, ms', fontsize=fontsize)
-    ax.set_ylabel('Top 1 generic decoding accuracy, %', fontsize=fontsize)
-    ax.set_xticks(timepoints)
-    ax.set_xticklabels(timepoints, fontsize=12)
-    fig.suptitle(title)
+    for n, ax in enumerate(axes):
+        ax.xaxis.set_tick_params(labelsize=12)
+        ax.yaxis.set_tick_params(labelsize=12)
+        ax.set_ylim([ylim[0], ylim[1]])
+        ax.legend(labels, fontsize=12)
+        ax.set_title(pane_labels[n], fontsize=16)
+        ax.set_xlabel(xlabel, fontsize=14)
+        ax.set_ylabel(ylabel, fontsize=14)
     return fig, ax
 
 

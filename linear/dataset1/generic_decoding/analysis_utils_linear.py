@@ -10,7 +10,8 @@ import seaborn as sea
 from pathlib import Path
 
 __all__ = ['res2hist', 'hist2top', 'res2top',  'topplot',\
-    'topplot_av_sw', 'create_time_axis', 'topplots_sliding_window']
+    'topplot_av_sw', 'create_time_axis', 'topplots_sliding_window',\
+    'get_data_sliding_window', 'create_time_axis']
 
 ### Basic functions (used in all topplots)
 
@@ -77,16 +78,19 @@ def hist2top(hist, top, return_sd=False):
 def res2top(filepaths, top):
     '''Converts generic decoding results into top plots.
     Inputs:
-        filepaths - list of str, filepaths
+        filepaths - list of str, filepaths or list of ints (gen_dec_res)
         top - int
     Outputs:
         tops - list of top N results
         sds - list of sds over subjects for subject-wise results
     '''
     # load files
-    fls=[]
-    for fl in filepaths:
-        fls.append(joblib.load(Path(fl)))
+    if isinstance(filepaths[0], str) or isinstance(filepaths[0], pathlib.PurePath):
+        fls=[]
+        for fl in filepaths:
+            fls.append(joblib.load(Path(fl)))
+    else:
+        fls=filepaths
     
     # gets histograms for each file for each time window
     hists = []
@@ -102,7 +106,19 @@ def res2top(filepaths, top):
         sds.append(sd_it)
     return tops, sds
 
-
+def res2top_single_file(fl, top):
+    '''Get top N generic decoding accuracy 
+    for a single file of generic decoding results.
+    Inputs:
+        fl - list of generic decoding results
+        top -int, top N
+    Outputs:
+        top - top N gen dec acc
+        sd - SD
+    '''
+    hist = res2hist(np.array(fl))
+    top, sd = hist2top(hist, top, return_sd=True) 
+    return top, sd
 
 ### Top plot functions
 
@@ -204,7 +220,7 @@ def create_time_axis(sliding_window_len, window_start, window_end, sr, epoch_sta
     return timepoints
 
 
-def get_data_slidiing_window(av_filename, sw_filename, filepaths):
+def get_data_sliding_window(av_filename, sw_filename, filepaths, top=1):
     '''
     Create timecourses of data for sliding time widnow experiment.
     Inputs:
@@ -233,43 +249,57 @@ def get_data_slidiing_window(av_filename, sw_filename, filepaths):
         sw_tops=[]
         sw_sds=[]
         for wind in range(len(av_fls[0])):
-            av_top, _  = res2top(av_fls[fl][wind], top)
-            sw_top, sw_sd = res2top(sw_fls[fl][wind], top)
+            av_top, _  = res2top_single_file(av_fls[fl][wind], top)
+            sw_top, sw_sd = res2top_single_file(sw_fls[fl][wind], top)
             av_tops.append(av_top)
             sw_tops.append(sw_top)
             sw_sds.append(sw_sd)
         av_timecourses_mean.append(np.array(av_tops))
         sw_timecourses_mean.append(np.array(sw_tops))
-        sw_timecourses_sd.append(np.array(sds).squeeze())
+        sw_timecourses_sd.append(np.array(sw_sds).squeeze())
     return av_timecourses_mean, sw_timecourses_mean, sw_timecourses_sd
     
 
 def topplots_sliding_window(av_timecourses_mean, sw_timecourses_mean, sw_timecourses_sd,\
-    labels, top=1, timepoints=None, title=None, fontsize=15):
+    labels, top=1, timepoints=None, title=None, fontsize=15, linestyles=None):
     ''' 
     Create top plots, i.e. generic decoding results percent ratio for each sliding window.
+    Note, that the maxismal number of methods is 4 (check the funciton to see, why)
     Inputs:
+        av_timecourses_mean - list of mean timecourses for average data
+        sw_timecourses_mean - list of mean timecourses for subject-wise data
+        sw_timecourses_sd - list of SDs of timecourses for subject-wise data
         labels - list of str, names of methods and preprocessiors (in the same order
                  as filepaths!). 
         top - int
         timepoints - np.array, times of widnows in ms
         title - str, figure title
+        linestyles - list of str, linestyles for different methods (e.g. so that 
+            control is dashed and IGA are solid) Default=None
     Outputs:
         fig, ax - figure and axis habdles
     '''
 
-    if timepoints == None:
+    if timepoints is None:
         timepoints = np.linspace(0, len(av_fls[0]), len(av_fls[0]),endpoint=False,\
             dtype=int)
-    colors=['C1','C2']
-    fig, ax = plt.subplots(figsize=(16,9))
-
+    colors=['C1','C2', 'C3', 'C4']
+    fig, ax = plt.subplots(1, 2, figsize=(16,9))
+    if not title is None: 
+        fig.suptitle(title) 
+    if linestyles is None:
+        linestyles = ['solid', 'solid', 'solid', 'solid'] 
     for ind in range(len(labels)):
         # average data
-        ax.plot(timepoints, av_timecourses[ind], color=colors[ind], linestyle='solid')
+        ax[0].plot(timepoints, av_timecourses_mean[ind], color=colors[ind], linestyle=linestyles[ind])
+    ax[0].legend(labels)
+    ax[0].set_title('average')
+    for ind in range(len(labels)):
         # subject-wise data
-        ax.errorbar(timepoints, sw_timecourses[ind], yerr=sds[ind], color=colors[ind], \
-            linestyle='dashed', capsize=10)
+        ax[1].errorbar(timepoints, sw_timecourses_mean[ind], yerr=sw_timecourses_sd[ind], color=colors[ind], \
+            linestyle=linestyles[ind], capsize=10)
+        ax[1].legend(labels)
+    ax[1].set_title('subject-wise')
     return fig, ax
 
 

@@ -3,7 +3,7 @@ import joblib
 decoding accuracy on multiviewica with PCA '''
 #! /bin/bash
 from pathlib import Path
-from analysis_utils_linear import cget_data_sliding_window, reate_time_axis, topplots_sliding_window
+from analysis_utils_linear import get_data_sliding_window, create_time_axis, topplots_sliding_window
 import pandas as pd
 import argparse
 
@@ -14,13 +14,13 @@ parser.add_argument('-save_fig', action='store_true', default=False, help='Flag,
 parser.add_argument('-save_data', action='store_true', default=False, help='Flag, whether to save '
     'top N accuracies data. Default=False.')
 parser.add_argument('-out_dir', type=str, 
-    default='/scratch/akitaitsev/intersubject_generalization/results/linear/gridsearches/',
+    default='/scratch/akitaitsev/intersubject_generalization/results/linear/',
     help='Directory to save the data and figure. Default= '
-    '/scratch/akitaitsev/intersubject_generalization/results/linear/gridsearches/')
+    '/scratch/akitaitsev/intersubject_generalization/results/linear/')
 parser.add_argument('-fig_name', type=str, 
-    default='time_resolution-top1-pca10_pca50.png', help='Figure name. Default=time_resolution-top1-pca10_pca50.png')
+    default='sliding_window.png', help='Figure name. Default=sliding_widnow.png')
 parser.add_argument('-data_name', type=str, 
-    default='time_resolution-top1-pca10_pca50.csv', help='Data name. Default=time_resolution-top1-pca10_pca50.csv')
+    default='sliding_window.csv', help='Data name. Default=sliding_window.csv')
 
 args = parser.parse_args()
 

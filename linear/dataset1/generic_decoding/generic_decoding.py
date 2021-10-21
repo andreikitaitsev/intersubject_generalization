@@ -210,7 +210,7 @@ def generic_decoding(real_data, pred_data, regr_type, sliding_window, \
     elif not sliding_window and cross_val_regr and not cross_val_gener:
         cor, res = _generic_decoding_cv_regr(real_data, pred_data)
     elif sliding_window and not cross_val_regr and not cross_val_gener:
-        cor, res = _generic_decoding_sliding_window(real_data, pred_data)
+        cor, res = _generic_decoding_sliding_window(real_data, pred_data, regr_type)
     elif incr_train_data:
         cor, res = _generic_decoding_simple(real_data, pred_data, regr_type)
     elif learn_pr_incr:

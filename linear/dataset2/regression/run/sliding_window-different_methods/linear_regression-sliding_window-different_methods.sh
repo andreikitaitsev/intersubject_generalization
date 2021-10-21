@@ -9,7 +9,7 @@
 # N_JOBS = 8
 # Run separate linear regression on each sliding window 
 dnn_dir="/scratch/akitaitsev/encoding_Ale/dataset2/dnn_activations/"
-eeg_dir_base="/scratch/akitaitsev/intersubject_generalization/linear/dataset2/intersubject_generalization/sliding_window-different_emthods/"
+eeg_dir_base="/scratch/akitaitsev/intersubject_generalization/linear/dataset2/intersubject_generalization/sliding_window-different_methods/"
 out_dir_base="/scratch/akitaitsev/intersubject_generalization/linear/dataset2/regression/sliding_window-different_methods/"
 
 method_list=("groupica" "multiviewica" "permica" "control")

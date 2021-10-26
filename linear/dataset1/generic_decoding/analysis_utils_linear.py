@@ -211,10 +211,10 @@ def create_time_axis(sliding_window_len, window_start, window_end, sr, epoch_sta
         timepoints - tuple of floats, end time of each time window, ms
     '''
     sample_spacing= int(1000* (1/sr)) #ms
-    ms_per_slidning_window = sliding_window_len*sample_spacing
-    n_windows = (window_end - window_start)//sliding_window_len 
+    samples_per_window=window_end-window_start+1
+    n_windows = (window_end - window_start+1)//sliding_window_len 
     window_start_ms = epoch_start + window_start*sample_spacing
-    start = int(window_start_ms + np.round(sample_spacing*sliding_window_len/2))
+    start = int(window_start_ms + np.ceil(sample_spacing*sliding_window_len/2))
     timepoints=np.concatenate((np.array([start]),np.tile(sample_spacing*sliding_window_len, (n_windows-1))))
     timepoints=np.cumsum(timepoints)
     return timepoints

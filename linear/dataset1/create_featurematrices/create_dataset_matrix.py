@@ -87,9 +87,9 @@ if __name__=='__main__':
         if not len(dataset_train.shape) == 4:
             raise ValueError("Dataset has 5 dimensions. Presumably, you did not average "
                 "over image repetitions.")
-        dataset_train = dataset_train[:,:,:,args.time_window[0]:args.time_window[1]+1 ]
-        dataset_val = dataset_val[:,:,:,args.time_window[0]:args.time_window[1]+1 ]
-        dataset_test = dataset_test[:,:,:,args.time_window[0]:args.time_window[1]+1 ]
+        dataset_train = dataset_train[:,:,:,args.time_window[0]-1:args.time_window[1] ]
+        dataset_val = dataset_val[:,:,:,args.time_window[0]-1:args.time_window[1] ]
+        dataset_test = dataset_test[:,:,:,args.time_window[0]-1:args.time_window[1] ]
     
     # save dataset matrices
     out_dir=Path(args.output_dir)

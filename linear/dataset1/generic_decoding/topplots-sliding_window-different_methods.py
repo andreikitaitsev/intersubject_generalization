@@ -13,10 +13,11 @@ parser.add_argument('-save_fig', action='store_true', default=False, help='Flag,
     'figure. Default=False.')
 parser.add_argument('-save_data', action='store_true', default=False, help='Flag, whether to save '
     'top N accuracies data. Default=False.')
-parser.add_argument('-out_dir', type=str,default='/scratch/akitaitsev/intersubject_generalization/results/linear/',
-    help='Directory to save the data and figure. Default=/scratch/akitaitsev/intersubject_generalization/results/linear/')
+parser.add_argument('-out_dir', type=str,default='/scratch/akitaitsev/intersubject_generalization/results/linear/'
+'sliding_window-different_methods/', help='Directory to save the data and figure. '
+'Default=/scratch/akitaitsev/intersubject_generalization/results/linear/')
 parser.add_argument('-fig_name', type=str, 
-    default='sliding_window-different_methods.png', help='Figure name. Default=sliding_window-different_methods.png')
+    default='sliding_window-different_methods-dataset1.png', help='Figure name. Default=sliding_window-different_methods-dataset1.png')
 parser.add_argument('-data_name', type=str, default='sliding_window-different_methods.csv', help='Data name.\
     Default=sliding_window-different_methods.csv')
 

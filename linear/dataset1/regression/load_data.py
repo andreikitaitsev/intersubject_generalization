@@ -4,10 +4,11 @@ from pathlib import Path
 import joblib
 import os
 import numpy as np
+import numpy as np
 
 # function from Ale script encoding_model_utils.py with small modifications -
 # instead of project dir input dnn_activations dirt
-def load_dnn_data(net, n_pca, project_dir):
+def load_dnn_data(net, n_pca, project_dir, skip_val=False):
 	"""Loading the DNN activations of training, validation and test data.
 	Parameters
 	----------
@@ -17,15 +18,13 @@ def load_dnn_data(net, n_pca, project_dir):
 			PCA downsampling dimensionality of DNN activations.
 	project_dir : str
 			Directory of the project folder.
+    skip_val - bool, whether to skip validaton test; if True, X_val = None.
+        Default=False
 
 	Returns
 	-------
 	DNN activations of training, validation and test data.
 	"""
-	import numpy as np
-	import os
-	print("\n>>> Loading the DDN activations <<<")
-
 	### DNN activations directory ###
 	data_dir = "pca_activations/" + net + "/layers-combined/" \
 			+ "pca_" + format(n_pca, "05")
@@ -35,7 +34,10 @@ def load_dnn_data(net, n_pca, project_dir):
 			allow_pickle=True).item()
 
 	X_train = activations["fmaps_train"]
-	X_val = activations["fmaps_val"]
+    if not skip_val:
+        X_val = activations["fmaps_val"]
+    elif skip_val:
+        X_val=None
 	X_test = activations["fmaps_test"]
 	return X_train, X_val, X_test
 

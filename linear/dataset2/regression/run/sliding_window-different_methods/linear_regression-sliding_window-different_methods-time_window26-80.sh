@@ -24,8 +24,8 @@ do
     for regr_type in "average" "subjectwise"
     do
         regr_types[$ind]=$regr_type
-        eeg_dirs[$ind]=$eeg_dir_base$method"/100hz/"
-        out_dirs[$ind]=$out_dir_base$method"/100hz/"
+        eeg_dirs[$ind]=$eeg_dir_base$method"/100hz/time_window26-80/"
+        out_dirs[$ind]=$out_dir_base$method"/100hz/time_window26-80/"
         methods[$ind]=$method
         ((ind=ind+1))
     done

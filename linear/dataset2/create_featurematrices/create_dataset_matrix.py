@@ -90,10 +90,10 @@ if __name__=='__main__':
         dataset_val = create_dataset_matrix('val', args.input_dir, srate=args.srate)
     # check if specific time windows shall be used
     if args.time_window != None:
-        dataset_train = dataset_train[:,:,:,args.time_window[0]:args.time_window[1]+1 ]
-        dataset_test = dataset_test[:,:,:,args.time_window[0]:args.time_window[1]+1 ]
+        dataset_train = dataset_train[:,:,:,args.time_window[0]-1:args.time_window[1] ]
+        dataset_test = dataset_test[:,:,:,args.time_window[0]-1:args.time_window[1]]
         if not args.omit_val:
-            dataset_val = dataset_val[:,:,:,args.time_window[0]:args.time_window[1]+1 ]
+            dataset_val = dataset_val[:,:,:,args.time_window[0]-1:args.time_window[1]]
     
     # save dataset matrices
     out_dir=Path(args.output_dir)

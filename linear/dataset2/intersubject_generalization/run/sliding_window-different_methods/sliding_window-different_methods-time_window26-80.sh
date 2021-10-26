@@ -2,7 +2,7 @@
 #SBATCH --mail-user=akitaitsev@zedat.fu-berlin.de
 #SBATCH --job-name=sl_wind_mvica
 #SBATCH --mail-type=end
-#SBATCH --mem=20000
+#SBATCH --mem=10000
 #SBATCH --time=30:00:00
 #SBATCH --qos=prio
 
@@ -15,7 +15,7 @@ method_list=("multiviewica" "groupica" "permica" "control")
 wind_len=5
 
 inp_dir="/scratch/akitaitsev/intersubject_generalization/linear/dataset2/dataset_matrices/100hz/time_window26-80/av_reps/"
-out_base="/scratch/akitaitsev/intersubject_generalization/linear/dataset2/intersubject_generalization/sliding_window-different_emthods/"
+out_base="/scratch/akitaitsev/intersubject_generalization/linear/dataset2/intersubject_generalization/sliding_window-different_methods/"
 
 declare -a out_dirs
 declare -a methods
@@ -23,7 +23,7 @@ ind=0
 for method in ${method_list[@]}
 do
     methods[$ind]=$method
-    out_dirs[$ind]=$out_base$method"/100hz/"
+    out_dirs[$ind]=$out_base$method"/100hz/time_window26-80/"
     ((ind=ind+1))
 done
 

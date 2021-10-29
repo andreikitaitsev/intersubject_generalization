@@ -9,37 +9,37 @@ import numpy as np
 # function from Ale script encoding_model_utils.py with small modifications -
 # instead of project dir input dnn_activations dirt
 def load_dnn_data(net, n_pca, project_dir, skip_val=False):
-	"""Loading the DNN activations of training, validation and test data.
-	Parameters
-	----------
-	net : str
-			Used DNN net.
-	n_pca : int
-			PCA downsampling dimensionality of DNN activations.
-	project_dir : str
-			Directory of the project folder.
+    """Loading the DNN activations of training, validation and test data.
+    Parameters
+    ----------
+    net : str
+            Used DNN net.
+    n_pca : int
+            PCA downsampling dimensionality of DNN activations.
+    project_dir : str
+            Directory of the project folder.
     skip_val - bool, whether to skip validaton test; if True, X_val = None.
         Default=False
 
-	Returns
-	-------
-	DNN activations of training, validation and test data.
-	"""
-	### DNN activations directory ###
-	data_dir = "pca_activations/" + net + "/layers-combined/" \
-			+ "pca_" + format(n_pca, "05")
-	file_name = "pca_fmaps.npy"
-	### Loading the DNN activations ###
-	activations = np.load(os.path.join(project_dir, data_dir, file_name), \
-			allow_pickle=True).item()
+    Returns
+    -------
+    DNN activations of training, validation and test data.
+    """
+    ### DNN activations directory ###
+    data_dir = "pca_activations/" + net + "/layers-combined/" \
+            + "pca_" + format(n_pca, "05")
+    file_name = "pca_fmaps.npy"
+    ### Loading the DNN activations ###
+    activations = np.load(os.path.join(project_dir, data_dir, file_name), \
+            allow_pickle=True).item()
 
-	X_train = activations["fmaps_train"]
+    X_train = activations["fmaps_train"]
     if not skip_val:
         X_val = activations["fmaps_val"]
     elif skip_val:
         X_val=None
-	X_test = activations["fmaps_test"]
-	return X_train, X_val, X_test
+    X_test = activations["fmaps_test"]
+    return X_train, X_val, X_test
 
 def load_intersubject_eeg(inp_dir, filenames):
     '''Loads the output of linear_intersubject_generalization_utils.py

@@ -27,18 +27,19 @@ sw_fname='generic_decoding_results_subjectwise.pkl'
 av_fname='generic_decoding_results_average.pkl'
 fpath_base='/scratch/akitaitsev/intersubject_generalization/linear/dataset1/generic_decoding/\
 sliding_window-different_methods/'
+time_window='/time_window16-80/'
 
 fpaths=[]
 methods=['multiviewica', 'permica', 'groupica', 'control']
 linestyles=['solid', 'solid', 'solid', 'dashed']
 for method in methods:
-    fpaths.append((fpath_base+method+'/100hz/'))
+    fpaths.append((fpath_base+method+'/100hz/'+time_window))
 
 # get timecourses data 
 av_time, sw_time, sw_time_sd =  get_data_sliding_window(av_fname, sw_fname, fpaths)
 
 # plot figures
-timepoints = create_time_axis(5, 26, 80, 100) # win_len=5 samples, start=26 samples, end=80 samples, sr=100Hz)
+timepoints = create_time_axis(5, 16, 80, 100) # win_len=5 samples, start=16 samples, end=80 samples, sr=100Hz)
 fig1, ax1 = topplots_sliding_window(av_time, sw_time, sw_time_sd, methods, top=1, timepoints=timepoints, \
     title='Top 1 generic decoding accuracy for the sliding time window', linestyles=linestyles)
 

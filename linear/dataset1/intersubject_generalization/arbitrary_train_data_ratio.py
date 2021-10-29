@@ -50,7 +50,7 @@ inds_shuffled = np.random.permutation(inds)
 featuremat_train_shuffled = featuremat_train[:,:,inds_shuffled]
 
 # train generalizer on N % of the training data
-last_ind= np.round((featuremat_train.shape[-1]/100)*args.trainin_data_ratio)
+last_ind= int((featuremat_train.shape[-1]/100)*args.training_data_ratio)
 gener.fit(featuremat_train_shuffled[:, :, :last_ind])
 
 # project and backproject data

@@ -61,7 +61,6 @@ def sliding_window(generalizer, dataset_train, dataset_val, dataset_test, window
 
     # create indeces list
     ind_list = [window+num*hop_length for num in range(0, n_steps)]
-    
     generalizers = []
     shared_train = []
     shared_val = []

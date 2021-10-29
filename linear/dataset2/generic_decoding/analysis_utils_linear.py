@@ -7,6 +7,7 @@ import numpy as np
 import joblib
 import matplotlib.pyplot as plt
 import seaborn as sea
+import pathlib
 from pathlib import Path
 
 __all__ = ['res2hist', 'hist2top', 'res2top',  'topplot',\
@@ -212,7 +213,7 @@ def create_time_axis(sliding_window_len, window_start, window_end, sr, epoch_sta
     '''
     sample_spacing= int(1000* (1/sr)) #ms
     ms_per_sliding_window = sliding_window_len*sample_spacing
-    n_windows = (window_end +1 - window_start)//sliding_window_len 
+    n_windows = (window_end - window_start +1)//sliding_window_len 
     window_start_ms = epoch_start + window_start*sample_spacing
     start = int(window_start_ms + np.round(sample_spacing*sliding_window_len/2))
     timepoints=np.concatenate((np.array([start]), np.tile(sample_spacing*sliding_window_len, (n_windows-1))))

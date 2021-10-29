@@ -9,6 +9,7 @@
 out_base="/scratch/akitaitsev/intersubject_generalization/linear/dataset1/generic_decoding/sliding_window-different_methods/"
 real_base="/scratch/akitaitsev/intersubject_generalization/linear/dataset1/intersubject_generalization/sliding_window-different_methods/"
 pred_base="/scratch/akitaitsev/intersubject_generalization/linear/dataset1/regression/sliding_window-different_methods/"
+time_window="16-80"
 
 declare -a out_dirs
 declare -a real_files
@@ -22,9 +23,9 @@ for method in ${method_list[@]}
 do
     for dtype in "average" "subjectwise"
     do
-        out_dirs[$ind]=$out_base$method"/100hz/time_window16-80/"
-        real_files[$ind]=$real_base$method"/100hz/time_window16-80/shared_test.pkl"
-        pred_files[$ind]=$pred_base$method"/100hz/time_window16-80/Y_test_predicted_"$dtype".pkl"
+        out_dirs[$ind]=$out_base$method"/100hz/time_window"$time_window"/"
+        real_files[$ind]=$real_base$method"/100hz/time_window"$time_window"/shared_test.pkl"
+        pred_files[$ind]=$pred_base$method"/100hz/time_window"$time_window"/Y_test_predicted_"$dtype".pkl"
         dtypes[$ind]=$dtype
         ((ind=ind+1))
     done

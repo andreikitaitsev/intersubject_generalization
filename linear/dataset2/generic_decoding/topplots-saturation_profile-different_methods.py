@@ -43,6 +43,7 @@ sds_av=[]
 tops_sw=[]
 sds_sw=[]
 for fpath in fpaths:
+    import ipdb; ipdb.set_trace()
     tops_av_, sds_av_, tops_sw_, sds_sw_ = average_shuffles(fpath, av_fname, \
         sw_fname, args.steps, args.nshuffles, args.top)
     tops_av.append(tops_av_)

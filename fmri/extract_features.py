@@ -3,13 +3,14 @@
 import torch
 import numpy as np
 import joblib
-import tqdm
 from pathlib import Path
 from decord import VideoReader
 from decord import cpu, gpu 
 from PIL import Image
 from torchvision import transforms as trn
 from collections import defaultdict
+from sklearn.preprocessing import StandardScaler
+from tqdm import tqdm
 
 
 def sample_video_from_mp4(file, num_frames=16):
@@ -34,39 +35,8 @@ def sample_video_from_mp4(file, num_frames=16):
         images.append(Image.fromarray(vr[seg_ind].asnumpy()))
     return images, num_frames
 
-
-def load_fmri(base_dir, track, region, dataset, subjs=None):
-    '''Loads fMRI data as numpy arrays from Algonautus dataset.
-    Returns a tuple of numpy arrays of fmri data and tuple of masks.
-    Input:
-        base_dir - str or Path object. Top Directory of the dataset.
-        track - str, 'full_track' or 'mini_track'
-        region - str, region for mini_track(EBA, FFA, LOC, PPA, STS, V1,
-            V2, V3, V4, and WB for the whole brain data.
-        dataset - str, train or test.
-        subjs - list of str with numbers of subject (01, 02, etc.). Defualt=
-            None, then using all 10 subjects.
-    Outputs:
-        fmri - tuple of numpy arrays of fMRI responses for the training set
-        masks - tuple of numpy arrays of masks for respective fMRI responses for
-            the training set
-    '''
-    if subjs==None:
-        subjs=['01','02','03', '04', '05', '06', '07', '08', '09', '10']
-    fmri=[]
-    if dataset=='train':
-        for subj in subjs:
-            fl=joblib.load(Path(base_dir).joinpath("participants_data_v2021", track, \
-                ('sub'+subj), (region+'.pkl')))
-            fmri.append(fl["train"])
-    elif dataset=='test':
-        for subj in subjs:
-            fl=joblib.load(Path(base_dir).joinpath("participants_data_v2021_test", track, \
-                ('sub'+subj), ('organizers_data_'+region+'.pkl')))
-            fmri.append(fl["test_data"])
-    return fmri
-
-def extract_features_cornet_s(video_list, model, debug=False):
+def extract_features_cornet_s(video_list, model, train_test_split=True, train_last_idx=1000, \
+    debug=False):
     '''
     Extract intermediate features of CORnet-S. By default, uses all the timesteps of 
     V1, V2, V4, IT, decoder layers, sublayer = output.
@@ -81,6 +51,9 @@ def extract_features_cornet_s(video_list, model, debug=False):
     Inputs:
         video_list - list of lists of PIL images sampled from one videos by sample_video_from_mp4  
         model - pytorch CORnet-S model (https://github.com/dicarlolab/CORnet)
+        train_test_split - bool, split the videos into the train and test sets (since in Algonauts
+            dataset they are packed in on file. If true, treates first 1000 videos as train and 
+            the rest (1000:) as test. Defualt=True.
         debug - bool. If true, prints the shape the output of each layer, sublayer and timestep.
             Default=False
     Outputs:
@@ -98,7 +71,6 @@ def extract_features_cornet_s(video_list, model, debug=False):
         # create an array of shape (frames, chs, height, width)
         ims = torch.stack([resize_normalize(im) for im in ims], dim=0)
         if torch.cuda.is_available():
-            model.cuda()
             ims=ims.cuda().to(torch.float32)
 
         timestep_dict={'V1': [0], 'V2':[0,1], 'V4':[0,1,2,3],'IT':[0,1],'decoder':[0]}
@@ -118,10 +90,11 @@ def extract_features_cornet_s(video_list, model, debug=False):
         except:
             m = model
         model_layer = getattr(getattr(m, layer), sublayer)
-        model_layer.register_forward_hook(_store_features)
-        _model_feats = []
+        hook = model_layer.register_forward_hook(_store_features)
         with torch.no_grad():
+            _model_feats = []
             model(ims)
+            hook.remove()
         timesteps=timestep_dict[str(layer)]
         for timestep in timesteps:
             try:
@@ -172,13 +145,36 @@ def extract_features_cornet_s(video_list, model, debug=False):
                 concatenated 
         '''
         activations=[]
+        if torch.cuda.is_available():
+            model.cuda()
         for video in tqdm(video_list): 
             activations.append(_extract_features_single_video_multiple_layers(video, model, layers))
         activations=np.stack(activations, axis=0)
         return activations
 
+    def _split_train_test_videos(activations, train_last_idx=1000):
+        ''' 
+        Splits 2d numpy array of extracted activations from mulptiple videos into 
+        the train and test sets.
+        Inputs:
+            activations - 2d numpy array of activations over all videos (concatenated train and test
+                activations).
+            train_idx - int, the number of train videos. Default=1000.
+        Outputs:
+            train_acts - 2d numpy array of train video activations
+            test_acts - 2d numpy array of test video activations
+        '''
+        train_acts = activations[:train_last_idx,:]
+        test_acts = activations[train_last_idx:,:]
+        return  train_acts, test_acts
+        
+    # run the functions
     activations = _extract_features_multiple_videos(video_list, model)
-    return activations
+    if train_test_split:
+        train_acts, test_acts = split_train_test_videos(activations, train_last_idx)
+        return train_acts, test_acts
+    else:
+        return activations
 
 
 class feature_extractor(object):
@@ -208,17 +204,17 @@ class feature_extractor(object):
         self.postprocessor = postprocessor
 
     def __call__(self, data):
-        activations = self.feature_extraction_function(data, self.model)
+        train_acts, test_acts = self.feature_extraction_function(data, self.model)
         if not self.postprocessor is None:
-            # check if postprocessor has fit_transform or fit and transform methods   
-            if getattr(self.postprocessor, 'fit_transform', False) and\
-                callable(getattr(self.postprocessor, 'fit_transform'):
-                activations = self.postprocessor.fit_transform(activations)
-            elif getattr(self.postprocessor, 'fit', False) and getattr(self.postprocessor, 'transform', False)\
-                and getattr(self.postprocessor, 'fit') and getattr(self.postprocessor, 'transform')):
-                self.postprocessor.fit(activations)
-                activations = self.postprocessor.transform(activations)
-        return activations
+            # check if postprocessor has fit and transform methods   
+            if callable(getattr(self.postprocessor, 'fit')) and callable(getattr(self.postprocessor, 'transform')):
+                sc = StandardScaler()
+                zscore_params = sc.fit(train_acts)
+                train_acts = zscore_params.transform(train_acts)
+                test_acts = zscore_params.transform(test_acts)
+            else:
+                raise ValueError('Postprocessor shall have fit and transform methods.')
+        return train_acts, test_acts
 
 
 if __name__ == '__main__':
@@ -228,17 +224,21 @@ if __name__ == '__main__':
     import argparse
     import cornet
     import glob
+    import time
+    from pathlib import Path
     from sklearn.decomposition import PCA
     parser=argparse.ArgumentParser()
     parser.add_argument('-video_dir', type=str, help='Directory where videos are stored')
-    parser.add_argument('-model', type=str, default='s', help='Type of cornet to use. s, r, or z.'
-    'Default=s.')
+    parser.add_argument('-out_dir', type=str, help='Output directory to store extracted features.')
+    parser.add_argument('-postprocessor', default='PCA', type=str, help='Postprocessor fot the extrcated CORnet-S features.'
+    'Must be an object from sklearn.decomposition. Default=PCA.')
     parser.add_argument('-n_comp', type=int, help='Number of Principal Components to retain in data.')
     args = parser.parse_args()
 
+    ### Configuration
     def get_cornet_model(pretrained=True, map_location=None):
         '''Get cornet model.'''
-        model = model = getattr(cornet, f'cornet_{args.model.lower()}') 
+        model = model = getattr(cornet, 'cornet_s') 
         model = model(pretrained=pretrained, map_location=map_location)
         return model
 
@@ -248,13 +248,26 @@ if __name__ == '__main__':
     video_list.sort()
 
     # configure feature extractor
-    postprocessor = PCA(args.n_comp)
+    postprocessor = eval(args.postprocessor+'('+str(args.n_comp)+')')
     feature_extractor = feature_extractor(model, extract_features_cornet_s, postprocessor)
 
+    ### Run
+    tic=time.time()
+    # load videos
     videos=[]
     for video in video_list:
         vid, frames=sample_video_from_mp4(video)
         videos.append(vid)
-    activations = feature_extractor(videos)
-    print(activations.shape)
 
+    # run feature extraction
+    train_acts, test_acts = feature_extractor(videos)
+
+    # save extracted activations
+    out_dir=Path(args.out_dir)
+    if not out_dir.is_dir():
+        out_dir.mkdir(parents=True)
+    joblib.dump(train_acts, out_dir.joinpath('train_activations.pkl')) 
+    joblib.dump(test_acts, out_dir.joinpath('test_activations.pkl')) 
+
+    toc = time.time() - tic
+    print('Elapsed time: '+str(toc))

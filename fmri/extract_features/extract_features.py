@@ -30,7 +30,7 @@ def sample_video_from_mp4(file, num_frames=16):
     images = list()
     vr = VideoReader(file, ctx=cpu(0))
     total_frames = len(vr)
-    indices = np.linspace(0,total_frames-1,num_frames,dtype=np.int)
+    indices = np.linspace(0,total_frames-1,num_frames,dtype=int)
     for seg_ind in indices:
         images.append(Image.fromarray(vr[seg_ind].asnumpy()))
     return images, num_frames
@@ -171,7 +171,7 @@ def extract_features_cornet_s(video_list, model, train_test_split=True, train_la
     # run the functions
     activations = _extract_features_multiple_videos(video_list, model)
     if train_test_split:
-        train_acts, test_acts = split_train_test_videos(activations, train_last_idx)
+        train_acts, test_acts = _split_train_test_videos(activations, train_last_idx)
         return train_acts, test_acts
     else:
         return activations
@@ -214,6 +214,9 @@ class feature_extractor(object):
                 test_acts = zscore_params.transform(test_acts)
             else:
                 raise ValueError('Postprocessor shall have fit and transform methods.')
+            self.postprocessor.fit(train_acts)
+            train_acts = self.postprocessor.transform(train_acts)
+            test_acts = self.postprocessor.transform(test_acts)
         return train_acts, test_acts
 
 

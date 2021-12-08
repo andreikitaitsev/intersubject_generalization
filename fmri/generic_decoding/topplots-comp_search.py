@@ -4,16 +4,19 @@
 import joblib
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from pathlib import Path
 from analysis_utils_linear import res2top_single_file
+from generic_decoding import scan_ncomp_from_dir
 import argparse 
+
 parser = argparse.ArgumentParser(description='Create topplots for different number of '
     'PCs for each ROI (including Whole Brain).''')
 parser.add_argument('-top', type=int, default=1, help="Default=1.")
 parser.add_argument('-regions', nargs='+', type=str, default=None, help="List of regions to use."
 "Default = all (WB, EBA, FFA, LOC, PPA, STS, V1, V2, V3, V4)")
 parser.add_argument('-comps', nargs='+', type=str, default=None, help='Number of components. '
-'Default=10 50 200 800.')
+'If None, auto_scan from folder provied.')
 parser.add_argument('-inp', type=str, default=
 '/scratch/akitaitsev/fMRI_Algonautus/generic_decoding/eigPCA/', help='Input directory. '
 'Default=/scratch/akitaitsev/fMRI_Algonautus/generic_decoding/eigPCA/')
@@ -26,37 +29,44 @@ args=parser.parse_args()
 
 av_fname = 'generic_decoding_results_av.pkl'
 sw_fname = 'generic_decoding_results_sw.pkl'
-base_dir = Path('/scratch/akitaitsev/fMRI_Algonautus/generic_decoding/eigPCA/')
+base_dir = Path('/scratch/akitaitsev/fMRI_Algonautus/generic_decoding/comp_search/multiviewica/eig_PCA/')
 if args.regions is None:
     regions=('WB', 'EBA', 'FFA', 'LOC', 'PPA', 'STS', 'V1', 'V2', 'V3', 'V4')
 else:
     regions = args.regions
-if args.comps is None:
-    comps=('10', '50', '200', '800')
-else:
-    comps=args.comps
-ncomp=len(comps)
 
 tops_av=[]
 tops_sw_av=[]
 tops_sw_sds=[]
 #av
 for region in regions:
+    if args.comps == None:
+        comps = scan_ncomp_from_dir(base_dir, [region])[region]
+    else:
+        comps = args.comps
     for comp in comps:
-        file_av=joblib.load(base_dir.joinpath(('PCA'+comp), region, av_fname))
+        base_dir_it=base_dir.joinpath(region, ('PCA'+comp))
+        av_fname_it = region+av_fname
+        file_av=joblib.load(base_dir_it.joinpath(av_fname_it))
         top1_av_it, _ = res2top_single_file(file_av, args.top)  
         tops_av.append(top1_av_it)
 
 # sw
 for region in regions:
+    if args.comps == None:
+        comps = scan_ncomp_from_dir(base_dir, [region])[region]
+    else:
+        comps = args.comps
     for comp in comps:
-        file_sw=joblib.load(base_dir.joinpath(('PCA'+comp), region, sw_fname))
+        base_dir_it=base_dir.joinpath(region, ('PCA'+comp))
+        sw_fname_it = region+sw_fname
+        file_sw=joblib.load(base_dir_it.joinpath(sw_fname_it))
         top1_sw_av_it, top1_sw_sd_it = res2top_single_file(file_sw, args.top)  
         tops_sw_av.append(top1_sw_sd_it)
         tops_sw_sds.append(top1_sw_sd_it)
 
 def create_x(ncomp, nregions, gap=2):
-'''Create x axis for the barplot.'''
+    '''Create x axis for the barplot.'''
     createX=lambda ncomp, nregions, gap: [np.linspace(1,ncomp,ncomp,\
         endpoint=True)+ncomp*num+gap*num for num in range(nregions)]
     x = createX(ncomp, nregions, gap)
@@ -74,30 +84,36 @@ def plot_compare_pcs(x, xticks, xticklabels, tops_av, tops_sw, sds_sw):
     axs[0].set_title('Average', fontsize=16)
     axs[0].set_xticks(xticks)
     axs[0].set_xticklabels(xticklabels, fontsize=14)
-    axs[1].errorbar(x, tops_sw, yerr=sds_sw)
+    axs[1].errorbar(x, tops_sw, yerr=sds_sw, capsize=8)
     axs[1].set_title('Subjectwise', fontsize=16)
     axs[1].set_xticks(xticks)
     axs[1].set_xticklabels(xticklabels, fontsize=14)
     return fig, axs
 
+def createX(ncomp, nregions, gap):
+    ar = np.linspace(0, ncomp*nregions, ncomp*nregions, endpoint=False)
+    ars = np.array_split(ar, nregions)
+    for n in range(len(ars)):
+        ars[n] = ars[n] + gap*n
+    return ars
 
-xticks = np.linspace(0, int(2*len(regions)), int(len(regions)), endpoint=False, dtype=int)
-cat=lambda ncomp: np.linspace(0, ncomp, ncomp, endpoint=True)
-createX=lambda ncomp, nregions, gap: np.concatenate([np.linspace(1,ncomp,ncomp, endpoint=True)+ncomp*num+gap for num in range(nregions)])
+def createX_ticks(ncomp, nregions, gap):
+    n1 = np.floor(ncomp/2)
+    ns=[]
+    for n in range(nregions):
+        ns.append(n1 + gap*n + ncomp*n)
+    return ns
 
-#flatten = lambda x: np.concatenate(x).tolist() #[item for subl in x for item in subl] 
-#x=flatten(
-#x=flatten([cat(el, 0.5) for el in xticks])
 
-fig, ax = plot_compare_pcs(x, tops_av, tops_sw_av, tops_sw_sds)
+flatten_list = lambda x: np.concatenate(x).tolist() 
+x=flatten_list(createX(3, 10, 2))
+xticks=createX_ticks(3,10,2)
 
-fignames=( 'top_'+str(args.top)+'_time_window13-40_50hz', 'top_'+str(args.top)+'_time_window26-80_100hz',\
-    'top_'+str(args.top)+'_time_window52-160_200hz')
+fig, ax = plot_compare_pcs(x, xticks, regions, tops_av, tops_sw_av, tops_sw_sds)
+plt.show()
 
+figname='Top'+str(args.top)+'comp_search.png'
 out_dir = Path(args.output_dir) 
 if not out_dir.is_dir():
     out_dir.mkdir(parents=True)
-
-figs=(fig50, fig100, fig200)
-for num, fig in enumerate(figs):
-    fig.savefig(out_dir.joinpath(fignames[num]))
+fig.savefig(out_dir.joinpath(figname))

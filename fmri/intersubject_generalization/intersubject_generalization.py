@@ -80,7 +80,7 @@ def dim_reduction(data, method, ncomp):
     '''
     if not (callable(getattr(method, 'fit')) or callable(getattr(method, 'transform'))):
         raise ValueError('Mehtod shall implement .fit and .transform methods.')
-    method = method(ncomp)
+    method = method(int(ncomp))
     reduced_data=[]
     for dat in data:
         method.fit(dat)
@@ -155,7 +155,7 @@ if __name__ == '__main__':
         print('Component range: '+str(comps))
         print('Chosen ncomp: '+str(ncomp))
     else:
-        ncomp = args.n_comp
+        ncomp = args.n_components
 
     # perform dimensionality reduction, get reduced featurematrix of shape (subj, n_features, n_videos)
     dat_tr_red = dim_reduction(dat_tr, dim_red_meth, ncomp)

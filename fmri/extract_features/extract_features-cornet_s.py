@@ -61,7 +61,15 @@ def extract_features_cornet_s(video_list, model, train_test_split=True, train_la
             are the concatenated outputs of all CORnet-S layers and timesteps averaged over frames 
             for each video.
     '''
-    def _extract_features_single_video_single_layer(ims, model, layer):
+    def _extract_features_single_video_single_layer(ims, model, layer, sublayer='output'):
+        '''
+        Input:
+            ims - list of PIL images sampled from a single video (list len=nframes) 
+                Each PIL image is of shape (pix, pix, RGB chans)
+            model - torch model, CORnet-S
+            layer - str, cornet-s layer to use.
+            sublayer - str, cornet-s sublayer to use
+        '''
         # resize normalize images
         resize_normalize = trn.Compose([
             trn.Resize((224,224)),
@@ -74,7 +82,6 @@ def extract_features_cornet_s(video_list, model, train_test_split=True, train_la
             ims=ims.cuda().to(torch.float32)
 
         timestep_dict={'V1': [0], 'V2':[0,1], 'V4':[0,1,2,3],'IT':[0,1],'decoder':[0]}
-        sublayer = 'output'
 
         # hooker function to access the intermediate model features of particular 
         #layer and sublayer
@@ -97,15 +104,10 @@ def extract_features_cornet_s(video_list, model, train_test_split=True, train_la
             hook.remove()
         timesteps=timestep_dict[str(layer)]
         for timestep in timesteps:
-            try:
-                model_feats.append(_model_feats[timestep])
-                if debug:
-                    print('Layer: '+str(layer)+' sublayer: '+str(sublayer)+' timestep: '+str(timestep)\
-                    +'\n'+str(_model_feats[timestep].shape))
-            except:
-                if debug:
-                    print('Attempted to access timestep '+str(timestep)+\
-                        'but \n layer '+str(layer)+' has '+str(len(timesteps))+' timesteps.')
+            model_feats.append(_model_feats[timestep])
+            if debug:
+                print('Layer: '+str(layer)+' sublayer: '+str(sublayer)+' timestep: '+str(timestep)\
+                +'\n'+str(_model_feats[timestep].shape))
         # concatenate along features if a layer has multiple time steps. If layer has one time step, 
         # convert it to np array
         if len(model_feats) > 1:
@@ -118,7 +120,8 @@ def extract_features_cornet_s(video_list, model, train_test_split=True, train_la
         '''Extract features from multiple layers for one video, averages features over frames for every 
         layer and concatenates features from different layers
         Inputs:
-            ims - np array of shape (n_frames, features)
+            ims - list of PIL images sampled from a single video (list len=nframes) 
+                Each PIL image is of shape (pix, pix, RGB chans)
             model - torch model, CORnet-S
             layers - list of str, default = V1, V2, V4, IT, decoder
         Outputs:
@@ -209,9 +212,9 @@ class feature_extractor(object):
             # check if postprocessor has fit and transform methods   
             if callable(getattr(self.postprocessor, 'fit')) and callable(getattr(self.postprocessor, 'transform')):
                 sc = StandardScaler()
-                zscore_params = sc.fit(train_acts)
-                train_acts = zscore_params.transform(train_acts)
-                test_acts = zscore_params.transform(test_acts)
+                sc.fit(train_acts)
+                train_acts = sc.transform(train_acts)
+                test_acts = sc.transform(test_acts)
             else:
                 raise ValueError('Postprocessor shall have fit and transform methods.')
             self.postprocessor.fit(train_acts)
@@ -229,7 +232,7 @@ if __name__ == '__main__':
     import glob
     import time
     from pathlib import Path
-    from sklearn.decomposition import PCA
+    from sklearn.decomposition import PCA, FastICA
     parser=argparse.ArgumentParser()
     parser.add_argument('-video_dir', type=str, help='Directory where videos are stored')
     parser.add_argument('-out_dir', type=str, help='Output directory to store extracted features.')

@@ -67,32 +67,27 @@ def auto_search_ncomp(tr_data, te_data, method, npoints=3, start=10, max_n_comp=
 
 
 
-def dim_reduction(train_data, test_data,  method, ncomp):
+def dim_reduction(data, method, ncomp):
     '''Perform dimentionality reduction.
     Inputs:
-        train_data, test_data - lists or tuples of fMRI data arrays for multiple subjects
-            for train and test sets. Each array is a in a set is a 3d numpy array of 
-            shape (n_videos, n_repetitios, n_voxels), on which dim reduction shall be performed.
+        data - list or tuple of fMRI data arrays for multiple subjects.Each array is a
+            3d numpy array of shape (n_videos, n_repetitios, n_voxels),
+            on which dim reduction shall be performed.
         method - sklearn compatible object implementing .fit and .transform methods
         ncomp - int, number of components to use (If auto_search=True, ncomp is ignored.
     Output:
         reduced_data - data after dim reduction.
     '''
     if not (callable(getattr(method, 'fit')) or callable(getattr(method, 'transform'))):
-        raise ValueError('Mehtod shall implerainment .fit and .transform methods.')
-    if not len(train_data)==len(test_data):
-        raise ValueError('Number of subjects in train and test data is different!')
+        raise ValueError('Mehtod shall implement .fit and .transform methods.')
     method = method(int(ncomp))
-    reduced_train=[]
-    reduced_test=[]
-    for tr, te in zip(train_data, test_data):
-        method.fit(tr)
-        reduced_train.append(method.transform(tr))
-        reduced_test.append(method.transform(te))
+    reduced_data=[]
+    for dat in data:
+        method.fit(dat)
+        reduced_data.append(method.transform(dat))
     # from (n_subj, n_vid, n_feat) to  (n_subj, n_features, n_videos)
-    reduced_train = np.transpose(np.stack(reduced_train, axis=0), (0, 2, 1))
-    reduced_test = np.transpose(np.stack(reduced_test, axis=0), (0, 2, 1))
-    return reduced_train, reduced_test
+    reduced_data = np.transpose(np.stack(reduced_data, axis=0), (0, 2, 1))
+    return reduced_data
 
 
 class eig_PCA(object):
@@ -163,7 +158,8 @@ if __name__ == '__main__':
         ncomp = args.n_components
 
     # perform dimensionality reduction, get reduced featurematrix of shape (subj, n_features, n_videos)
-    dat_tr_red, dat_te_red = dim_reduction(dat_tr, dat_te, dim_red_meth, ncomp)
+    dat_tr_red = dim_reduction(dat_tr, dim_red_meth, ncomp)
+    dat_te_red = dim_reduction(dat_te, dim_red_meth, ncomp)
     print('Dimensionality reduction completed...')
 
     # init intersubject generalizer class with user difined method

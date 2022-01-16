@@ -70,7 +70,7 @@ class intersubject_generalizer():
                  every subject.
 
         User guide:
-        1. calll .fit method on the dataset you want to estimate dim reduction and 
+        1. call .fit method on the dataset you want to estimate dim reduction and 
         unmixing matrices on (train set). 
         2. call .project on the test dataset to use learned dim reduction and 
         unmixing matrices to project in into the shared space.

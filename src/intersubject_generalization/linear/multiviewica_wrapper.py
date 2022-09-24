@@ -1,6 +1,6 @@
 #! /bin/bash
 '''
-Script provides wrapper around multiviewica functions to use with sklearn-like 
+A wrapper for multiviewica functions to use with sklearn-like 
 syntax (.fit, .project, etc) convinient for train-test setup.
 If called as main, allows to run multiviewica or permica on featurematrix of
 shape (subj, features, samples). Use create_featurematrix.py to create feature matrix.
@@ -16,7 +16,7 @@ except:
     'https://github.com/hugorichard/multiviewica/blob/master/README.md \n'
     'for installation instructions.')
 
-class intersubject_generalizer():    
+class MultiViewIcaWraper():    
     def __init__(self, method, n_components, dimension_reduction, method_kwargs=None):
         '''Create an object for intersubject generalization.
         Attributes:

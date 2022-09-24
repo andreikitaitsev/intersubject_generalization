@@ -1,3 +1,0 @@
-# with other pillow version throws an error
-pip install Pillow==6.1
-

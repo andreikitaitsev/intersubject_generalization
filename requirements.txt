@@ -1,0 +1,6 @@
+autopep8==1.7.0
+-e git+https://github.com/andreikitaitsev/intersubject_generalization@c77c10359b4f07ab176b9910e911d5fc1d2c2e5b#egg=intersubject_generalization
+joblib==1.2.0
+numpy==1.23.3
+pycodestyle==2.9.1
+toml==0.10.2
